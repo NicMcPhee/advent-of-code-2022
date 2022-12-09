@@ -24,41 +24,50 @@ impl Rucksack {
     fn shared_char(&self) -> char {
         *self.top.intersection(&self.bottom).next().unwrap()
     }
+
+    fn all_elements(&self) -> HashSet<char> {
+        self.top.union(&self.bottom).copied().collect()
+    }
+
+    fn intersect(&self, other: &Rucksack) -> HashSet<char> {
+        self.all_elements().intersection(&other.all_elements()).copied().collect()
+    }
+
+    fn common_element(rucksacks: &[Rucksack]) -> char {
+        assert!(rucksacks.len() == 3);
+        *rucksacks[0].intersect(&rucksacks[1]).intersection(&rucksacks[2].all_elements()).next().unwrap()
+    }
 }
 
 fn priority(c: char) -> u32 {
     if c.is_lowercase() {
-        return 1 + c as u32 - ('a' as u32);
+        1 + c as u32 - ('a' as u32)
     } else if c.is_uppercase() {
-        return 1 + 26 + (c as u32) - ('A' as u32);
+        1 + 26 + (c as u32) - ('A' as u32)
     } else {
         panic!("The character {c} didn't work");
     }
 }
 
 fn main() {
-    let total: u32 = fs::read_to_string("../inputs/day_03.input")
-        .expect("Should have been able to read the file")
-        .lines()
-        .map(Rucksack::from)
+    let contents = fs::read_to_string("../inputs/day_03.input")
+        .expect("Should have been able to read the file");
+    let lines = contents.lines();
+    let rucksacks = lines.map(Rucksack::from);
+
+    let total: u32 = rucksacks.clone()
         .map(|r| r.shared_char())
         .map(priority)
         .sum();
 
     println!("The total sum of priorities is {total}.");
 
-    // let mut totals: Vec<usize> = contents
-    //     .split("\n\n")
-    //     .map(|g| g.split_ascii_whitespace())
-    //     .map(|g| sum_group(g))
-    //     .collect();
+    let group_total: u32 = rucksacks
+        .collect::<Vec<_>>()
+        .chunks(3)
+        .map(Rucksack::common_element)
+        .map(priority)
+        .sum();
 
-    // let biggest = totals.iter().max().unwrap();
-
-    // println!("The largest sum was {biggest}");
-
-    // totals.sort();
-    // let biggest_three: usize = totals.iter().rev().take(3).sum();
-
-    // println!("The sum of the three largest values was {biggest_three}.");
+    println!("The total sum of group badge priorities is {group_total}.");
 }
