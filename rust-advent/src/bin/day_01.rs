@@ -8,7 +8,7 @@ fn main() {
     let mut totals: Vec<usize> = contents
         .split("\n\n")
         .map(|g| g.split_ascii_whitespace())
-        .map(|g| sum_group(g))
+        .map(sum_group)
         .collect();
 
     let biggest = totals.iter().max().unwrap();

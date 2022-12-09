@@ -141,7 +141,7 @@ fn main() {
 
     // println!("{:?}", contents.split("\n").map(MovePair::from).map(MovePair::total_score).take(10).collect::<Vec<i32>>());
     
-    let lines = contents.split("\n");
+    let lines = contents.split('\n');
 
     let total: i32 = lines.clone()
         .map(MovePair::from)
