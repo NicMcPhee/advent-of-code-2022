@@ -3,7 +3,7 @@ use std::fs;
 
 struct Rucksack {
     top: HashSet<char>,
-    bottom: HashSet<char>
+    bottom: HashSet<char>,
 }
 
 fn char_set(s: &str) -> HashSet<char> {
@@ -16,7 +16,10 @@ impl From<&str> for Rucksack {
         let (front_chars, back_chars) = s.split_at(compartment_size);
         let front_set = char_set(front_chars);
         let back_set = char_set(back_chars);
-        Rucksack { top:front_set, bottom: back_set }
+        Rucksack {
+            top: front_set,
+            bottom: back_set,
+        }
     }
 }
 
@@ -30,12 +33,19 @@ impl Rucksack {
     }
 
     fn intersect(&self, other: &Rucksack) -> HashSet<char> {
-        self.all_elements().intersection(&other.all_elements()).copied().collect()
+        self.all_elements()
+            .intersection(&other.all_elements())
+            .copied()
+            .collect()
     }
 
     fn common_element(rucksacks: &[Rucksack]) -> char {
         assert!(rucksacks.len() == 3);
-        *rucksacks[0].intersect(&rucksacks[1]).intersection(&rucksacks[2].all_elements()).next().unwrap()
+        *rucksacks[0]
+            .intersect(&rucksacks[1])
+            .intersection(&rucksacks[2].all_elements())
+            .next()
+            .unwrap()
     }
 }
 
@@ -55,7 +65,8 @@ fn main() {
     let lines = contents.lines();
     let rucksacks = lines.map(Rucksack::from);
 
-    let total: u32 = rucksacks.clone()
+    let total: u32 = rucksacks
+        .clone()
         .map(|r| r.shared_char())
         .map(priority)
         .sum();

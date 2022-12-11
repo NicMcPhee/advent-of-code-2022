@@ -2,7 +2,7 @@ use std::fs;
 
 struct SectionAssignment {
     start: u8,
-    end:   u8,
+    end: u8,
 }
 
 impl SectionAssignment {
@@ -20,29 +20,25 @@ impl SectionAssignment {
 
 impl From<&str> for SectionAssignment {
     fn from(s: &str) -> Self {
-        let mut parts
-            = s.split('-')
-               .map(|s| s.parse::<u8>().unwrap());
+        let mut parts = s.split('-').map(|s| s.parse::<u8>().unwrap());
         SectionAssignment {
             start: parts.next().unwrap(),
-            end:   parts.next().unwrap(),
+            end: parts.next().unwrap(),
         }
     }
 }
 
 struct AssignmentPair {
-    left:  SectionAssignment,
+    left: SectionAssignment,
     right: SectionAssignment,
 }
 
 impl From<&str> for AssignmentPair {
     fn from(s: &str) -> Self {
-        let mut parts
-            = s.split(",")
-               .map(SectionAssignment::from);
+        let mut parts = s.split(',').map(SectionAssignment::from);
         AssignmentPair {
-            left:  parts.next().unwrap(),
-            right: parts.next().unwrap()
+            left: parts.next().unwrap(),
+            right: parts.next().unwrap(),
         }
     }
 }
@@ -60,21 +56,14 @@ impl AssignmentPair {
 fn main() {
     let contents = fs::read_to_string("../inputs/day_04.input")
         .expect("Should have been able to read the file");
-    
-    let pairs 
-        = contents.split('\n')
-                  .map(AssignmentPair::from);
 
-    let num_contains
-        = pairs.clone()
-               .filter(|p| p.contains())
-               .count();
+    let pairs = contents.split('\n').map(AssignmentPair::from);
+
+    let num_contains = pairs.clone().filter(|p| p.contains()).count();
 
     println!("The number of complete containments is {num_contains}.");
 
-    let num_overlaps
-        = pairs.filter(|p| p.overlaps())
-               .count();
-    
+    let num_overlaps = pairs.filter(|p| p.overlaps()).count();
+
     println!("The number of overlaps is {num_overlaps}");
 }

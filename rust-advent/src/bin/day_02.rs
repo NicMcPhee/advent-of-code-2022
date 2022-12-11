@@ -4,7 +4,7 @@ use std::fs;
 enum Move {
     Rock = 1,
     Paper,
-    Scissors
+    Scissors,
 }
 
 impl Move {
@@ -19,7 +19,7 @@ impl From<&str> for Move {
             "A" | "X" => Self::Rock,
             "B" | "Y" => Self::Paper,
             "C" | "Z" => Self::Scissors,
-            _ => panic!("We got an illegal move string")
+            _ => panic!("We got an illegal move string"),
         }
     }
 }
@@ -28,7 +28,7 @@ impl From<&str> for Move {
 enum Outcome {
     Lose = 0,
     Tie = 1,
-    Win = 2
+    Win = 2,
 }
 
 impl From<&str> for Outcome {
@@ -37,9 +37,9 @@ impl From<&str> for Outcome {
             "X" => Self::Lose,
             "Y" => Self::Tie,
             "Z" => Self::Win,
-            _ => panic!("We got an illegal outcome string")
+            _ => panic!("We got an illegal outcome string"),
         }
-    }    
+    }
 }
 
 impl Outcome {
@@ -55,7 +55,7 @@ impl Outcome {
 #[derive(Debug)]
 struct MovePair {
     their_move: Move,
-    my_move: Move
+    my_move: Move,
 }
 
 impl FromIterator<Move> for MovePair {
@@ -63,16 +63,14 @@ impl FromIterator<Move> for MovePair {
         let mut i = iter.into_iter();
         Self {
             their_move: i.next().unwrap(),
-            my_move: i.next().unwrap()
+            my_move: i.next().unwrap(),
         }
     }
 }
 
 impl From<&str> for MovePair {
     fn from(s: &str) -> Self {
-        s.split_ascii_whitespace()
-         .map(Move::from)
-         .collect()
+        s.split_ascii_whitespace().map(Move::from).collect()
     }
 }
 
@@ -82,7 +80,7 @@ impl MovePair {
         match diff {
             1 | -2 => Outcome::Win,
             0 => Outcome::Tie,
-            _ => Outcome::Lose
+            _ => Outcome::Lose,
         }
     }
 
@@ -100,14 +98,8 @@ impl<'a> FromIterator<&'a str> for TargetPair {
     fn from_iter<T: IntoIterator<Item = &'a str>>(iter: T) -> Self {
         let mut i = iter.into_iter();
         Self {
-            their_move: i
-                .next()
-                .unwrap()
-                .into(),
-            outcome: i
-                .next()
-                .unwrap()
-                .into(),
+            their_move: i.next().unwrap().into(),
+            outcome: i.next().unwrap().into(),
         }
     }
 }
@@ -122,15 +114,18 @@ impl TargetPair {
     fn compute_my_move(&self) -> Move {
         match self.their_move.val() + self.outcome.val() - 1 {
             1 | 4 => Move::Rock,
-            2     => Move::Paper,
+            2 => Move::Paper,
             3 | 0 => Move::Scissors,
-            diff => panic!("Illegal diff value {diff} for Move", ) 
+            diff => panic!("Illegal diff value {diff} for Move"),
         }
     }
 
     fn total_score(self) -> i32 {
         let my_move = self.compute_my_move();
-        let moves = MovePair { their_move: self.their_move, my_move };
+        let moves = MovePair {
+            their_move: self.their_move,
+            my_move,
+        };
         my_move.val() + moves.outcome().score()
     }
 }
@@ -140,10 +135,11 @@ fn main() {
         .expect("Should have been able to read the file");
 
     // println!("{:?}", contents.split("\n").map(MovePair::from).map(MovePair::total_score).take(10).collect::<Vec<i32>>());
-    
+
     let lines = contents.split('\n');
 
-    let total: i32 = lines.clone()
+    let total: i32 = lines
+        .clone()
         .map(MovePair::from)
         .map(MovePair::total_score)
         .sum();
