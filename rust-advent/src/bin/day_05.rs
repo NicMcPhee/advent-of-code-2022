@@ -69,14 +69,15 @@ impl Stacks {
         self.stacks[(stack_num - 1) as usize].push(crate_val);
     }
 
-    fn take_from(&mut self, stack_num: u8, num_crates: u8) -> impl Iterator<Item = char> + '_ {
+    fn take_from(&mut self, stack_num: u8, num_crates: u8) -> Vec<char> {
         let stack_len = self.stacks[(stack_num-1) as usize].size();
         self.stacks[(stack_num-1) as usize]
             .items
             .drain(0..(stack_len-(num_crates as usize)))
+            .collect()
     }
 
-    fn add_to(&mut self, stack_num: u8, block: impl Iterator<Item = char>) {
+    fn add_to(&mut self, stack_num: u8, block: &[char]) {
         self.stacks[(stack_num-1) as usize]
             .items
             .extend(block);
@@ -103,9 +104,10 @@ impl Stacks {
     }
 
     fn perform_grouped(&mut self, action: Action) {
-        let block = self.take_from(action.start_stack, action.num_crates);
-        self.add_to(action.destination_stack, block);
-        todo!()
+        let mut clone_of_self = self.clone();
+        let block = clone_of_self.take_from(action.start_stack, action.num_crates);
+        self.add_to(action.destination_stack, &block);
+        println!("{:?}", self);
     }
 }
 
