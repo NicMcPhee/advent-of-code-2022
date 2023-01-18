@@ -1,4 +1,9 @@
-use anyhow::{Context, Result};
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::expect_used)]
+
+use anyhow::{anyhow, Context, Result};
 use std::fs;
 use std::str::SplitAsciiWhitespace;
 
@@ -9,15 +14,18 @@ fn main() -> Result<()> {
 
     let mut totals: Vec<usize> = contents
         .split("\n\n")
-        .map(|g| g.split_ascii_whitespace())
+        .map(str::split_ascii_whitespace)
         .map(sum_group)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let biggest = totals.iter().max().unwrap();
+    let biggest = totals
+        .iter()
+        .max()
+        .ok_or_else(|| anyhow!("Empty list of totals"))?;
 
     println!("The largest sum was {biggest}");
 
-    totals.sort();
+    totals.sort_unstable();
     let biggest_three: usize = totals.iter().rev().take(3).sum();
 
     println!("The sum of the three largest values was {biggest_three}.");
