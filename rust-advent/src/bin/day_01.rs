@@ -1,15 +1,17 @@
+use anyhow::{Context, Result};
 use std::fs;
 use std::str::SplitAsciiWhitespace;
 
-fn main() {
-    let contents = fs::read_to_string("../inputs/day_01.input")
-        .expect("Should have been able to read the file");
+fn main() -> Result<()> {
+    let input_file = "../inputs/day_01.input";
+    let contents = fs::read_to_string(input_file)
+        .with_context(|| format!("Failed to open the input file '{input_file}'"))?;
 
     let mut totals: Vec<usize> = contents
         .split("\n\n")
         .map(|g| g.split_ascii_whitespace())
         .map(sum_group)
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let biggest = totals.iter().max().unwrap();
 
@@ -19,8 +21,15 @@ fn main() {
     let biggest_three: usize = totals.iter().rev().take(3).sum();
 
     println!("The sum of the three largest values was {biggest_three}.");
+
+    Ok(())
 }
 
-fn sum_group(group: SplitAsciiWhitespace) -> usize {
-    group.map(|s| s.parse::<usize>().unwrap()).sum()
+fn sum_group(group: SplitAsciiWhitespace) -> Result<usize> {
+    group
+        .map(|s| {
+            s.parse::<usize>()
+                .with_context(|| format!("Failed to parse '{}' to `usize`.", s))
+        })
+        .sum::<Result<usize>>()
 }
