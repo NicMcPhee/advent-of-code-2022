@@ -9,7 +9,6 @@ use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_01.input";
 
-// TODO: Extract Parts 1 and 2 out with tests.
 fn main() -> Result<()> {
     let big_three: [usize; 3] = process_elves(INPUT_FILE)?;
 
