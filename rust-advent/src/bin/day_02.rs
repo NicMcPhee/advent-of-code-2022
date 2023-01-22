@@ -47,12 +47,10 @@ impl TryFrom<i8> for RPS {
 //   difference? Clippy seemed to think so, but it would be interesting
 //   to see what the actual impact is.
 impl RPS {
-    const fn game_score(self, their_move: Self) -> u32 {
-        let our_val = self as i8;
-        let their_val = their_move as i8;
-        if (3 + our_val - their_val) % 3 == 1 {
+    fn game_score(self, their_move: Self) -> u32 {
+        if self.beats() == their_move {
             6
-        } else if our_val == their_val {
+        } else if self == their_move {
             3
         } else {
             0
