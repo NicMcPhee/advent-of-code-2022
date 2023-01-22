@@ -5,7 +5,7 @@
 
 use std::{fs, str::FromStr};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_02.input";
 
@@ -29,6 +29,19 @@ impl FromStr for RPS {
     }
 }
 
+impl TryFrom<i8> for RPS {
+    type Error = anyhow::Error;
+
+    fn try_from(i: i8) -> Result<Self> {
+        match i {
+            1 => Ok(Self::Rock),
+            2 => Ok(Self::Paper),
+            3 => Ok(Self::Scissors),
+            _ => bail!("Can't convert {i} to an RPS value"),
+        }
+    }
+}
+
 // TODO: Benchmark passing `self` (i.e., an 8-bit value) instead
 //   of `&self` (i.e., a 64-bit value). Does it really make a
 //   difference? Clippy seemed to think so, but it would be interesting
@@ -46,23 +59,46 @@ impl RPS {
         }
     }
 
+    fn shift(self, shift_amount: i8) -> Self {
+        let our_val = self as i8;
+        let mut their_val = (3 + our_val + shift_amount) % 3;
+        if their_val == 0 {
+            their_val = 3;
+        }
+        assert!((1..=3).contains(&their_val));
+        #[allow(clippy::unwrap_used)]
+        their_val.try_into().unwrap()
+    }
+
+    fn beats(self) -> Self {
+        self.shift(-1)
+    }
+
+    fn loses_to(self) -> Self {
+        self.shift(1)
+    }
+
     // This takes their move (self) and the desired outcome
     // and returns the move we would need to make to generate
     // that result.
-    const fn our_move(self, outcome: Outcome) -> Self {
+    fn our_move(self, outcome: Outcome) -> Self {
         match outcome {
             Outcome::Draw => self,
-            Outcome::Win => match self {
-                Self::Paper => Self::Scissors,
-                Self::Rock => Self::Paper,
-                Self::Scissors => Self::Rock,
-            },
-            Outcome::Lose => match self {
-                Self::Paper => Self::Rock,
-                Self::Rock => Self::Scissors,
-                Self::Scissors => Self::Paper,
-            }
+            Outcome::Win => self.loses_to(),
+            Outcome::Lose => self.beats(),
         }
+    }
+}
+
+#[cfg(test)]
+mod beats_tests {
+    use super::*;
+
+    #[test]
+    fn beats_check() {
+        assert_eq!(RPS::Rock.beats(), RPS::Scissors);
+        assert_eq!(RPS::Paper.beats(), RPS::Rock);
+        assert_eq!(RPS::Scissors.beats(), RPS::Paper);
     }
 }
 
@@ -105,19 +141,15 @@ fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let total_score = contents
-        .lines()
-        .map(process_game)
-        .sum::<Result<u32>>()?;
-    
+    let total_score = contents.lines().map(process_game).sum::<Result<u32>>()?;
+
     println!("The total score was {total_score}");
 
     Ok(())
 }
 
 fn process_game(line: &str) -> Result<u32> {
-    let mut parts = line
-        .split_ascii_whitespace();
+    let mut parts = line.split_ascii_whitespace();
 
     let their_move = parts
         .next()
