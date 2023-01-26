@@ -3,38 +3,43 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, str::Lines};
 
 use anyhow::{bail, Context, Result};
+use itertools::{Chunk, Itertools};
 
 static INPUT_FILE: &str = "../inputs/day_03.input";
 
 fn main() -> Result<()> {
-    let sum_of_priorities = process_rucksacks(INPUT_FILE)?;
+    let sum_of_priorities = process_groups(INPUT_FILE)?;
 
     println!("The sum of the priorities is {sum_of_priorities:?}");
 
     Ok(())
 }
 
-fn process_rucksacks(input_file: &str) -> Result<u32> {
+fn process_groups(input_file: &str) -> Result<u32> {
     let contents = fs::read_to_string(input_file)
         .with_context(|| format!("Failed to open file '{input_file}'"))?;
 
-    contents.lines().map(process_rucksack).sum()
+    contents
+        .lines()
+        .chunks(3)
+        .into_iter()
+        .map(process_group)
+        .sum()
 }
 
-fn process_rucksack(line: &str) -> Result<u32> {
-    let (first, second) = line.split_at(line.len() / 2);
-    assert_eq!(first.len(), second.len());
-    let first_set = first.chars().collect::<HashSet<_>>();
-    let second_set = second.chars().collect::<HashSet<_>>();
+fn process_group(group: Chunk<Lines>) -> Result<u32> {
+    let shared_items = group
+        .map(|s| s.chars().collect::<HashSet<_>>())
+        .reduce(|so_far, other| so_far.intersection(&other).copied().collect())
+        .with_context(|| "There were no lines in a group")?;
 
-    // The problem statement ensures that there is exactly one shared item.
-    let shared_item = first_set
-        .intersection(&second_set)
+    let shared_item = shared_items
+        .iter()
         .next()
-        .with_context(|| format!("There was no common character in '{first}' and '{second}'"))?;
+        .with_context(|| "There was no shared item in a group")?;
     let shared_item = *shared_item;
 
     Ok(match shared_item {
