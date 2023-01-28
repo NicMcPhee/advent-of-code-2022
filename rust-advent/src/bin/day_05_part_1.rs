@@ -58,18 +58,43 @@ impl FromStr for Stacks {
     //   somewhere, but since we don't it doesn't present itself as
     //   as an issue.
     fn from_str(s: &str) -> Result<Self> {
-        Ok(s.lines().rev().skip(1).map(extract_stack_elements).fold(
-            Self::default(),
-            |stacks, line| {
-                line.iter().enumerate().filter(|&(_, c)| *c != ' ').fold(
-                    stacks,
-                    |mut stacks, (i, c)| {
-                        stacks.stacks[i].push(*c);
-                        stacks
-                    },
-                )
-            },
-        ))
+        let stacks = s
+            .lines()
+            // We reverse the lines because we want the "bottom" lines
+            // to be pushed onto the stacks first so those values end
+            // up on the bottom of the stacks.
+            .rev()
+            // We'll just skip the line with the stack numbers since we
+            // never use them.
+            .skip(1)
+            // Convert each line to a `Vec<char>` that holds the 9 elements
+            // at each level. We'll put spaces in that `Vec<char>` for stacks
+            // that don't have anything at that level.
+            .map(extract_stack_elements)
+            // "Loop" over each line/level, pushing the non-space values onto
+            // the appropriate stacks.
+            .fold(Self::default(), |stacks, line| {
+                stacks.push_values_on_stacks(&line)
+            });
+
+        Ok(stacks)
+    }
+}
+
+impl Stacks {
+    // Note that the argument here is `self` and not `&self` because we
+    // need to take ownership of this `Stacks` value so we can mutate
+    // it in the `fold()` call. Alternatively we could declare this
+    // as taking `&mut self`, but the calling function has no need
+    // access the "old" value so there's really no need.
+    fn push_values_on_stacks(self, line: &[char]) -> Self {
+        line.iter()
+            .enumerate()
+            .filter(|&(_, c)| *c != ' ')
+            .fold(self, |mut stacks, (i, c)| {
+                stacks.stacks[i].push(*c);
+                stacks
+            })
     }
 }
 
