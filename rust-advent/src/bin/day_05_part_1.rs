@@ -104,6 +104,11 @@ mod stacks_from_str_tests {
 
     #[test]
     fn test_from_str() {
+        // TODO: This string is pretty ugly. @esitsu@Twitch suggested in `indoc`
+        //   crate, which would allow us to indent things the way we want here,
+        //   and it would left shift everything so it was up against the left
+        //   side. That would be nicer, but I don't know if I'll take the time
+        //   to do this?
         let input = "    [D]                                       
 [N] [C]                                           
 [Z] [M] [P]                                       
