@@ -5,13 +5,13 @@
 
 use std::{fs, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_05.input";
 
 const NUM_STACKS: usize = 9;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Stacks {
     stacks: [Vec<char>; NUM_STACKS],
 }
@@ -41,22 +41,6 @@ mod extract_stack_elements_test {
 impl FromStr for Stacks {
     type Err = anyhow::Error;
 
-    // TODO: Having a `fold()` inside a `fold()` here is pretty hard
-    //   to think about, and I think I want to extract the inner fold into
-    //   a named helper function. It seems that the same rules about
-    //   not nesting for-loops probably applies to thing like nesting
-    //   fold() calls as well.
-    // TODO: I don't _really_ understand how the mutability rules are
-    //   playing out here, and certainly expected that more instances of
-    //   of `stacks` would need to be declared as `mut` than we
-    //   ultimately needed. I think the trick is that we passed ownership
-    //   of the set of stacks in to the `fold()` and inner `fold()`, so
-    //   every closure that has a reference to `stacks` _owns_ that
-    //   reference and can thus mutate it. If we held an incoming
-    //   reference to `stacks` and referred to it later, then we
-    //   would need to retain ownership and probably need a `mut`
-    //   somewhere, but since we don't it doesn't present itself as
-    //   as an issue.
     fn from_str(s: &str) -> Result<Self> {
         let stacks = s
             .lines()
@@ -96,6 +80,34 @@ impl Stacks {
                 stacks
             })
     }
+
+    fn apply(
+        mut self,
+        Instruction {
+            num_to_move,
+            from_stack,
+            to_stack,
+        }: Instruction,
+    ) -> Result<Self> {
+        for _ in 0..num_to_move {
+            let value_to_move = self.stacks[from_stack - 1].pop().with_context(|| {
+                format!("We tried to pop from stack {from_stack}, which was empty")
+            })?;
+            self.stacks[to_stack - 1].push(value_to_move);
+        }
+        Ok(self)
+    }
+
+    fn tops_string(&self) -> Result<String> {
+        self.stacks
+            .iter()
+            .map(|s| {
+                s.last().copied().with_context(|| {
+                    format!("We tried to take the top of an empty stack: {:?}", self)
+                })
+            })
+            .collect::<Result<String>>()
+    }
 }
 
 #[cfg(test)]
@@ -121,17 +133,59 @@ mod stacks_from_str_tests {
     }
 }
 
+struct Instruction {
+    num_to_move: usize,
+    from_stack: usize,
+    to_stack: usize,
+}
+
+impl FromStr for Instruction {
+    type Err = anyhow::Error;
+
+    // move 13 from 8 to 7
+    fn from_str(s: &str) -> Result<Self> {
+        let parts: Vec<usize> = s
+            .split_ascii_whitespace()
+            .enumerate()
+            .filter(|(pos, _)| pos % 2 == 1)
+            .map(|(_, val)| {
+                val.parse::<usize>()
+                    .with_context(|| format!("Couldn't parse '{val}' to an int"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        ensure!(
+            parts.len() == 3,
+            "Line '{s}' didn't have the appropriate format"
+        );
+        let num_to_move = parts[0];
+        let from_stack = parts[1];
+        let to_stack = parts[2];
+        Ok(Self {
+            num_to_move,
+            from_stack,
+            to_stack,
+        })
+    }
+}
+
 fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let (stack_config, instruction) = contents
+    let (stack_config, instructions) = contents
         .split_once("\n\n")
         .context("There was no blank line in the input")?;
 
     let stacks: Stacks = stack_config.parse()?;
 
-    // println!("The sum of the priorities is {sum_of_priorities:?}");
+    let instructions: Vec<Instruction> = instructions
+        .lines()
+        .map(str::parse)
+        .collect::<Result<Vec<_>>>()?;
+
+    let final_state = instructions.into_iter().try_fold(stacks, Stacks::apply)?;
+
+    println!("The top of the stacks is {}", final_state.tops_string()?);
 
     Ok(())
 }
