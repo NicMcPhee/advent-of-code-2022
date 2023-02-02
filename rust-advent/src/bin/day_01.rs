@@ -56,8 +56,9 @@ mod process_elves_test {
 
     #[test]
     fn check_process_elves() {
+        #[allow(clippy::unwrap_used)]
         let mut big_three = process_elves(INPUT_FILE).unwrap();
-        big_three.sort();
+        big_three.sort_unstable();
         assert_eq!([68579, 69863, 74394], big_three);
     }
 }

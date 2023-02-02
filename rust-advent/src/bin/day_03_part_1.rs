@@ -3,9 +3,9 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{fs, collections::HashSet};
+use std::{collections::HashSet, fs};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_03.input";
 
@@ -21,9 +21,7 @@ fn process_rucksacks(input_file: &str) -> Result<u32> {
     let contents = fs::read_to_string(input_file)
         .with_context(|| format!("Failed to open file '{input_file}'"))?;
 
-    contents.lines()
-        .map(process_rucksack)
-        .sum()
+    contents.lines().map(process_rucksack).sum()
 }
 
 fn process_rucksack(line: &str) -> Result<u32> {
@@ -42,7 +40,7 @@ fn process_rucksack(line: &str) -> Result<u32> {
     Ok(match shared_item {
         'a'..='z' => char_to_priority(shared_item, 'a', 1),
         'A'..='Z' => char_to_priority(shared_item, 'A', 27),
-        _ => bail!("Illegal shared item '{}'", shared_item)
+        _ => bail!("Illegal shared item '{}'", shared_item),
     })
 }
 
