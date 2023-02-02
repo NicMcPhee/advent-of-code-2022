@@ -89,12 +89,17 @@ impl Stacks {
             to_stack,
         }: Instruction,
     ) -> Result<Self> {
-        for _ in 0..num_to_move {
-            let value_to_move = self.stacks[from_stack - 1].pop().with_context(|| {
-                format!("We tried to pop from stack {from_stack}, which was empty")
-            })?;
-            self.stacks[to_stack - 1].push(value_to_move);
-        }
+        let source = &mut self.stacks[from_stack - 1];
+        // [0, 1, 2, 3, 4, 5], move 2 things, range is (4..)
+        ensure!(
+            num_to_move <= source.len(),
+            "We tried to take {num_to_move} items from {source:?}"
+        );
+        let crates_to_move = source
+            .drain((source.len() - num_to_move)..)
+            .collect::<Vec<_>>();
+        let destination = &mut self.stacks[to_stack - 1];
+        destination.extend(crates_to_move);
         Ok(self)
     }
 
