@@ -81,6 +81,17 @@ impl Stacks {
             })
     }
 
+    // TODO: There are two alternate proposals that would avoid
+    //  creating the intermediate `Vec<char>` in `crates_to_move`.
+    //   - One is from @esitsu which is to use `split_at_mut()` on
+    //     the array of stacks (Stacks.stacks) so that we have two
+    //     mutable slices and can move crates from one to the other
+    //     "at the same time".
+    //   - The other is from @ikopor which is to use unsafe mode since
+    //     we know (after an appropriate check) that the two `Vec<char>`s
+    //     that are being modified are _different_, so we can mutate them
+    //     "at the same time".
+    //   I might come back to one or both of these later.
     fn apply(
         mut self,
         Instruction {
