@@ -6,19 +6,25 @@
 use std::{
     cmp::max,
     fs::{self},
+    slice::Iter,
     str::FromStr,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 
-// This is going to keep track of the tallest tree
-// in each direction from a given position in the forest.
-#[derive(Default, Clone, Debug)]
-struct LargestNeighbors {
-    left: Option<char>,
-    right: Option<char>,
-    up: Option<char>,
-    down: Option<char>,
+#[derive(Debug)]
+struct Tree {
+    height: u8,
+    visible: Option<bool>,
+}
+
+impl Tree {
+    fn new(height: char) -> Self {
+        Self {
+            height: (height as u8) - b'0',
+            visible: None,
+        }
+    }
 }
 
 // This assumes we have a square array, but that appears to be true
@@ -29,8 +35,7 @@ struct LargestNeighbors {
 // arrays.
 #[derive(Debug)]
 struct Forest {
-    trees: Vec<Vec<char>>,
-    largest_neighbors: Vec<Vec<LargestNeighbors>>,
+    trees: Vec<Vec<Tree>>,
 }
 
 impl FromStr for Forest {
@@ -39,113 +44,107 @@ impl FromStr for Forest {
     fn from_str(s: &str) -> Result<Self> {
         let trees = s
             .lines()
-            .map(|s| s.chars().collect::<Vec<_>>())
+            .map(|s| s.chars().map(|c| Tree::new(c)).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
         let size = trees.len();
 
         anyhow::ensure!(size == trees[0].len());
 
-        let largest_neighbors = vec![vec![LargestNeighbors::default(); size]; size];
+        Ok(Forest { trees })
+    }
+}
 
-        Ok(Self {
-            trees,
-            largest_neighbors,
-        })
+enum Direction {
+    LeftToRight,
+    RightToLeft,
+    TopToBottom,
+    BottomToTop,
+}
+
+struct ForestIter<'forest> {
+    forest: &'forest mut Forest,
+    direction: Direction,
+    position: usize,
+}
+
+impl<'forest> Iterator for ForestIter<'forest>
+where
+    Self: 'forest,
+{
+    type Item = Box<dyn Iterator<Item = &'forest mut Tree> + 'forest>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position >= self.forest.size() {
+            return None;
+        }
+        let position = self.position;
+        match self.direction {
+            Direction::LeftToRight => Some(Box::new(self.forest.trees[position].iter_mut())),
+            _ => None,
+            // Direction::RightToLeft => Some(Box::new(self.forest.trees[position].iter_mut().rev())),
+            // Direction::TopToBottom => Some(Box::new(self.forest.trees.iter_mut().map(move |row| todo!()))),
+            // Direction::BottomToTop => Some(Box::new(self.forest.trees.iter_mut().map(move |row| &mut row[position]).rev())),
+        }
+    }
+}
+
+impl<'forest> ForestIter<'forest> {
+    fn new(forest: &'forest mut Forest, direction: Direction) -> Self {
+        Self {
+            forest,
+            direction,
+            position: 0,
+        }
     }
 }
 
 impl Forest {
-    // '/' is immediately before '0' in the ASCII/Unicode table so we
-    // know it is less than any digit character.
-    const MIN_HEIGHT: char = '/';
-    // This almost works, but `char::from_u32` isn't stable as a const fn yet.
-    // This should actually work in the current version of rust (1.67), but I'm
-    // behind (1.65).
-    // const min_height: char = {
-    //     let zero_ord: u32 = '0' as u32;
-    //     let min_char = char::from_u32(zero_ord).unwrap();
-    //     min_char
-    // };
-
     fn size(&self) -> usize {
         self.trees.len()
     }
 
-    fn visible(&mut self, row: usize, col: usize) -> Result<bool> {
-        let smallest_largest_neighbor = [
-            self.largest_neighbors_left(row, col),
-            self.largest_neighbors_right(row, col),
-            self.largest_neighbors_up(row, col),
-            self.largest_neighbors_down(row, col),
-        ]
-        .iter()
-        .min()
-        .copied()
-        .with_context(|| {
-            "There were no neighbors for the `min()` call at position ({row}, {col})"
-        })?;
-        Ok(self.trees[row][col] > smallest_largest_neighbor)
+    fn visible(&self, row: usize, col: usize) -> Result<bool> {
+        ensure!(row < self.size());
+        ensure!(col < self.size());
+        let result = self.trees[row][col].visible;
+        match result {
+            None => bail!("Called visible on a tree ({row}, {col}) that hadn't been processed"),
+            Some(visible) => Ok(visible),
+        }
     }
 
-    fn largest_neighbors_left(&mut self, row: usize, col: usize) -> char {
-        if let Some(n) = self.largest_neighbors[row][col].left {
-            return n;
+    fn process_slice(&self, slice_iterator: Box<dyn Iterator<Item = &mut Tree>>) {
+        let tallest_so_far: i32 = -1;
+        for tree in slice_iterator {
+            let visible = tree.visible.unwrap() || tree.height as i32 > tallest_so_far;
+            tree.visible = Some(true);
         }
-        if col == 0 {
-            return Self::MIN_HEIGHT;
-        }
-        let lnll = self.largest_neighbors_left(row, col - 1);
-        let l = self.trees[row][col - 1];
-        let m = max(lnll, l);
-        self.largest_neighbors[row][col].left = Some(m);
-
-        m
+        todo!();
     }
 
-    fn largest_neighbors_right(&mut self, row: usize, col: usize) -> char {
-        if let Some(n) = self.largest_neighbors[row][col].right {
-            return n;
-        }
-        if col == self.size() - 1 {
-            return Self::MIN_HEIGHT;
-        }
-        let lnrr = self.largest_neighbors_right(row, col + 1);
-        let r = self.trees[row][col + 1];
-        let m = max(lnrr, r);
-        self.largest_neighbors[row][col].right = Some(m);
+    // 30373
+    // 25512
+    // 65332
+    // 33549
+    // 35390
 
-        m
+    fn visible_from_direction(&mut self, direction: Direction) {
+        let forest_iterator = ForestIter::new(self, direction);
+        forest_iterator.for_each(|slice_iterator| {
+            self.process_slice(slice_iterator);
+        });
     }
 
-    fn largest_neighbors_up(&mut self, row: usize, col: usize) -> char {
-        if let Some(n) = self.largest_neighbors[row][col].up {
-            return n;
+    fn compute_visibilities(&mut self) {
+        for direction in [
+            Direction::BottomToTop,
+            Direction::LeftToRight,
+            Direction::RightToLeft,
+            Direction::TopToBottom,
+        ] {
+            self.visible_from_direction(direction);
         }
-        if row == 0 {
-            return Self::MIN_HEIGHT;
-        }
-        let lnuu = self.largest_neighbors_up(row - 1, col);
-        let u = self.trees[row - 1][col];
-        let m = max(lnuu, u);
-        self.largest_neighbors[row][col].up = Some(m);
-
-        m
-    }
-
-    fn largest_neighbors_down(&mut self, row: usize, col: usize) -> char {
-        if let Some(n) = self.largest_neighbors[row][col].down {
-            return n;
-        }
-        if row == self.size() - 1 {
-            return Self::MIN_HEIGHT;
-        }
-        let lndd = self.largest_neighbors_down(row + 1, col);
-        let d = self.trees[row + 1][col];
-        let m = max(lndd, d);
-        self.largest_neighbors[row][col].down = Some(m);
-
-        m
     }
 }
 
@@ -153,6 +152,8 @@ static INPUT_FILE: &str = "../inputs/day_08.input";
 
 fn count_visible(contents: &str) -> Result<usize> {
     let mut forest = contents.parse::<Forest>()?;
+
+    forest.compute_visibilities();
 
     // I do not like this looping and might want to come back to see
     // if I can avoid it.
