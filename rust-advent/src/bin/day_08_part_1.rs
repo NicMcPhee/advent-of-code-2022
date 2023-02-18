@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use rayon::prelude::{ParallelBridge, ParallelIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -120,6 +121,7 @@ fn count_visible(contents: &str) -> Result<usize> {
 
     let num_visible_trees = (0..size)
         .flat_map(|col_num| (0..size).zip(repeat(col_num)))
+        .par_bridge()
         .filter_map(|(row_num, col_num)| forest.is_visible(row_num, col_num).then_some(true))
         .count();
 
