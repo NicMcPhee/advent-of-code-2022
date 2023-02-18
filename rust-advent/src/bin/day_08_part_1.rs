@@ -4,25 +4,24 @@
 #![warn(clippy::expect_used)]
 
 use std::{
-    cmp::max,
     fs::{self},
-    slice::Iter,
+    iter::repeat,
     str::FromStr,
 };
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[derive(Debug)]
 struct Tree {
     height: u8,
-    visible: Option<bool>,
 }
 
 impl Tree {
-    fn new(height: char) -> Self {
+    const fn new(height: char) -> Self {
         Self {
             height: (height as u8) - b'0',
-            visible: None,
         }
     }
 }
@@ -44,83 +43,32 @@ impl FromStr for Forest {
     fn from_str(s: &str) -> Result<Self> {
         let trees = s
             .lines()
-            .map(|s| s.chars().map(|c| Tree::new(c)).collect::<Vec<_>>())
+            .map(|s| s.chars().map(Tree::new).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
         let size = trees.len();
 
+        // Check that the forest is square, sort of. All this
+        // actually checks is that the number of rows is the same
+        // as the number of columns in the first row, but that's
+        // probably sufficient for now.
         anyhow::ensure!(size == trees[0].len());
 
-        Ok(Forest { trees })
+        Ok(Self { trees })
     }
 }
 
+#[derive(EnumIter)]
 enum Direction {
-    LeftToRight,
-    RightToLeft,
-    TopToBottom,
-    BottomToTop,
-}
-
-struct ForestIter<'forest> {
-    forest: &'forest mut Forest,
-    direction: Direction,
-    position: usize,
-}
-
-impl<'forest> Iterator for ForestIter<'forest>
-where
-    Self: 'forest,
-{
-    type Item = Box<dyn Iterator<Item = &'forest mut Tree> + 'forest>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.position >= self.forest.size() {
-            return None;
-        }
-        let position = self.position;
-        match self.direction {
-            Direction::LeftToRight => Some(Box::new(self.forest.trees[position].iter_mut())),
-            _ => None,
-            // Direction::RightToLeft => Some(Box::new(self.forest.trees[position].iter_mut().rev())),
-            // Direction::TopToBottom => Some(Box::new(self.forest.trees.iter_mut().map(move |row| todo!()))),
-            // Direction::BottomToTop => Some(Box::new(self.forest.trees.iter_mut().map(move |row| &mut row[position]).rev())),
-        }
-    }
-}
-
-impl<'forest> ForestIter<'forest> {
-    fn new(forest: &'forest mut Forest, direction: Direction) -> Self {
-        Self {
-            forest,
-            direction,
-            position: 0,
-        }
-    }
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 impl Forest {
     fn size(&self) -> usize {
         self.trees.len()
-    }
-
-    fn visible(&self, row: usize, col: usize) -> Result<bool> {
-        ensure!(row < self.size());
-        ensure!(col < self.size());
-        let result = self.trees[row][col].visible;
-        match result {
-            None => bail!("Called visible on a tree ({row}, {col}) that hadn't been processed"),
-            Some(visible) => Ok(visible),
-        }
-    }
-
-    fn process_slice(&self, slice_iterator: Box<dyn Iterator<Item = &mut Tree>>) {
-        let tallest_so_far: i32 = -1;
-        for tree in slice_iterator {
-            let visible = tree.visible.unwrap() || tree.height as i32 > tallest_so_far;
-            tree.visible = Some(true);
-        }
-        todo!();
     }
 
     // 30373
@@ -129,47 +77,56 @@ impl Forest {
     // 33549
     // 35390
 
-    fn visible_from_direction(&mut self, direction: Direction) {
-        let forest_iterator = ForestIter::new(self, direction);
-        forest_iterator.for_each(|slice_iterator| {
-            self.process_slice(slice_iterator);
-        });
+    fn is_taller_than(
+        &self,
+        row: usize,
+        col: usize,
+        mut tree_locations: impl Iterator<Item = (usize, usize)>,
+    ) -> bool {
+        let this_height = self.trees[row][col].height;
+        tree_locations
+            .all(|(other_row, other_col)| this_height > self.trees[other_row][other_col].height)
     }
 
-    fn compute_visibilities(&mut self) {
-        for direction in [
-            Direction::BottomToTop,
-            Direction::LeftToRight,
-            Direction::RightToLeft,
-            Direction::TopToBottom,
-        ] {
-            self.visible_from_direction(direction);
+    fn is_visible_from(&self, row: usize, col: usize, direction: &Direction) -> bool {
+        match direction {
+            Direction::Up => self.is_taller_than(row, col, repeat(row).zip(0..col)),
+            Direction::Down => self.is_taller_than(row, col, repeat(row).zip(col + 1..self.size())),
+            Direction::Left => self.is_taller_than(row, col, (0..row).zip(repeat(col))),
+            Direction::Right => {
+                self.is_taller_than(row, col, (row + 1..self.size()).zip(repeat(col)))
+            }
         }
+
+        // let mut neighbors = match direction {
+        //     Direction::Up => (0..col).map(Box::new(|col_num| (row, col_num)) as Box<dyn Fn (usize) -> (usize, usize)>),
+        //     Direction::Down => (col+1..self.size()).map(Box::new(|col_num| (row, col_num)) as Box<dyn Fn (usize) -> (usize, usize)>),
+        //     Direction::Left => (0..row).map(Box::new(|row_num| (row_num, col)) as Box<dyn Fn (usize) -> (usize, usize)>),
+        //     Direction::Right => (row+1..self.size()).map(Box::new(|row_num| (row_num, col)) as Box<dyn Fn (usize) -> (usize, usize)>),
+        // };
+        // let this_height = self.trees[row][col].height;
+        // neighbors.all(|(other_row, other_col)| this_height > self.trees[other_row][other_col].height)
+    }
+
+    fn is_visible(&self, row: usize, col: usize) -> bool {
+        Direction::iter().any(|direction| self.is_visible_from(row, col, &direction))
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_08.input";
-
 fn count_visible(contents: &str) -> Result<usize> {
-    let mut forest = contents.parse::<Forest>()?;
+    let forest = contents.parse::<Forest>()?;
 
-    forest.compute_visibilities();
+    let size = forest.size();
 
-    // I do not like this looping and might want to come back to see
-    // if I can avoid it.
-    let mut num_visible_trees = 0;
-    for row in 0..forest.size() {
-        for col in 0..forest.size() {
-            if forest.visible(row, col)? {
-                num_visible_trees += 1;
-                // println!("({row}, {col}) was visible");
-            }
-        }
-    }
-    // println!("{forest:#?}");
+    let num_visible_trees = (0..size)
+        .flat_map(|col_num| (0..size).zip(repeat(col_num)))
+        .filter_map(|(row_num, col_num)| forest.is_visible(row_num, col_num).then_some(true))
+        .count();
 
     Ok(num_visible_trees)
 }
+
+static INPUT_FILE: &str = "../inputs/day_08.input";
 
 fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
