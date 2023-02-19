@@ -66,27 +66,36 @@ enum Direction {
 //   the parameters for these variants? I generally really like
 //   this approach, but these types seem super specific to me
 //   in a way that seems potentially fragile.
-enum ForestIter {
-    RowIter(Zip<Range<usize>, Repeat<usize>>),
-    ColumnIter(Zip<Repeat<usize>, Range<usize>>),
+enum ForestIterator<A, B> {
+    RowIter(A),    // Zip<Range<usize>, Repeat<usize>>),
+    ColumnIter(B), // Zip<Repeat<usize>, Range<usize>>),
 }
 
-impl ForestIter {
-    fn all(&mut self, f: impl Fn((usize, usize)) -> bool) -> bool {
+impl<A, B, C> Iterator for ForestIterator<A, B>
+where
+    A: Iterator<Item = C>,
+    B: Iterator<Item = C>,
+{
+    type Item = C;
+
+    fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::RowIter(iter) => iter.all(f),
-            Self::ColumnIter(iter) => iter.all(f),
+            Self::RowIter(iter) => iter.next(),
+            Self::ColumnIter(iter) => iter.next(),
         }
     }
 }
 
-impl Direction {
-    fn neighbors(self, row: usize, col: usize, size: usize) -> ForestIter {
-        match self {
-            Self::Up => ForestIter::ColumnIter(repeat(row).zip(0..col)),
-            Self::Down => ForestIter::ColumnIter(repeat(row).zip(col + 1..size)),
-            Self::Left => ForestIter::RowIter((0..row).zip(repeat(col))),
-            Self::Right => ForestIter::RowIter((row + 1..size).zip(repeat(col))),
+type RowIterator = Zip<Range<usize>, Repeat<usize>>;
+type ColumnIterator = Zip<Repeat<usize>, Range<usize>>;
+impl ForestIterator<RowIterator, ColumnIterator> {
+    // Should this be called `new()` instead?
+    fn neighbors(direction: Direction, row: usize, col: usize, size: usize) -> Self {
+        match direction {
+            Direction::Up => Self::ColumnIter(repeat(row).zip(0..col)),
+            Direction::Down => Self::ColumnIter(repeat(row).zip(col + 1..size)),
+            Direction::Left => Self::RowIter((0..row).zip(repeat(col))),
+            Direction::Right => Self::RowIter((row + 1..size).zip(repeat(col))),
         }
     }
 }
@@ -104,7 +113,7 @@ impl Forest {
 
     fn is_visible_from(&self, row: usize, col: usize, direction: Direction) -> bool {
         let this_height = self.trees[row][col].height;
-        let mut neighbors = direction.neighbors(row, col, self.size());
+        let mut neighbors = ForestIterator::neighbors(direction, row, col, self.size());
         neighbors
             .all(|(other_row, other_col)| this_height > self.trees[other_row][other_col].height)
     }
