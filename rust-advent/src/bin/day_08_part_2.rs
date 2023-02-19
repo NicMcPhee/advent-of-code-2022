@@ -54,7 +54,7 @@ impl FromStr for Forest {
     }
 }
 
-#[derive(EnumIter)]
+#[derive(EnumIter, Clone, Copy)]
 enum Direction {
     Up,
     Down,
@@ -81,7 +81,7 @@ impl ForestIter {
 }
 
 impl Direction {
-    fn neighbors(&self, row: usize, col: usize, size: usize) -> ForestIter {
+    fn neighbors(self, row: usize, col: usize, size: usize) -> ForestIter {
         match self {
             Self::Up => ForestIter::ColumnIter(repeat(row).zip(0..col)),
             Self::Down => ForestIter::ColumnIter(repeat(row).zip(col + 1..size)),
@@ -102,7 +102,7 @@ impl Forest {
     // 33549
     // 35390
 
-    fn is_visible_from(&self, row: usize, col: usize, direction: &Direction) -> bool {
+    fn is_visible_from(&self, row: usize, col: usize, direction: Direction) -> bool {
         let this_height = self.trees[row][col].height;
         let mut neighbors = direction.neighbors(row, col, self.size());
         neighbors
@@ -110,7 +110,7 @@ impl Forest {
     }
 
     fn is_visible(&self, row: usize, col: usize) -> bool {
-        Direction::iter().any(|direction| self.is_visible_from(row, col, &direction))
+        Direction::iter().any(|direction| self.is_visible_from(row, col, direction))
     }
 }
 
