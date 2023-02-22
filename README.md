@@ -1,6 +1,6 @@
 # My 2022 Advent of Code solutions in Rust (& Clojure)
 
-![Screen show of one of my Twitch stream videos working on a 2022 Advent of Code problem](images/Advent-of-code-stream-screenshot.png)
+[![Screen show of one of my Twitch stream videos working on a 2022 Advent of Code problem](images/Advent-of-code-stream-screenshot.png)](https://www.youtube.com/watch?v=S7KOEJZB0UQ&list=PLI9i5fpXEEc4JIcLjwRF0XuerU7WpkWsA)
 
 When I started [the 2022 Advent of Code problems](https://adventofcode.com/2022)
 in December 2022 I was comparing solutions in
