@@ -8,7 +8,8 @@ in December 2022 I was comparing solutions in
 I only got a few (4 or 5) problems in during the first few weeks
 of December because of time constraints. After coming back from
 the winter holidays, though, I decided to to start spending two
-of my four [Twitch streaming sessions](https://Twitch.tv/NicMcPhee)
+of my four weekly
+[Twitch streaming sessions](https://Twitch.tv/NicMcPhee)
 on working through these problems in Rust. So there will be more
 [Rust solutions](./rust-advent/) than
 [Clojure solutions](./clojure-advent/), at least for the moment.
