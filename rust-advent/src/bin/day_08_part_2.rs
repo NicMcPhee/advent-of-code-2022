@@ -5,7 +5,7 @@
 
 use std::{
     fs::{self},
-    iter::{repeat, Repeat, Zip},
+    iter::{repeat, Repeat, Rev, Zip},
     ops::Range,
     str::FromStr,
 };
@@ -66,36 +66,44 @@ enum Direction {
 //   the parameters for these variants? I generally really like
 //   this approach, but these types seem super specific to me
 //   in a way that seems potentially fragile.
-enum ForestIterator<A, B> {
-    RowIter(A),    // Zip<Range<usize>, Repeat<usize>>),
-    ColumnIter(B), // Zip<Repeat<usize>, Range<usize>>),
+enum ForestIterator<UP, DOWN, LEFT, RIGHT> {
+    Up(UP),
+    Down(DOWN),
+    Left(LEFT),
+    Right(RIGHT),
 }
 
-impl<A, B, C> Iterator for ForestIterator<A, B>
+impl<UP, DOWN, LEFT, RIGHT, I> Iterator for ForestIterator<UP, DOWN, LEFT, RIGHT>
 where
-    A: Iterator<Item = C>,
-    B: Iterator<Item = C>,
+    UP: Iterator<Item = I>,
+    DOWN: Iterator<Item = I>,
+    LEFT: Iterator<Item = I>,
+    RIGHT: Iterator<Item = I>,
 {
-    type Item = C;
+    type Item = I;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::RowIter(iter) => iter.next(),
-            Self::ColumnIter(iter) => iter.next(),
+            Self::Up(iter) => iter.next(),
+            Self::Down(iter) => iter.next(),
+            Self::Left(iter) => iter.next(),
+            Self::Right(iter) => iter.next(),
         }
     }
 }
 
-type RowIterator = Zip<Range<usize>, Repeat<usize>>;
-type ColumnIterator = Zip<Repeat<usize>, Range<usize>>;
-impl ForestIterator<RowIterator, ColumnIterator> {
+type Up = Zip<Repeat<usize>, Rev<Range<usize>>>;
+type Down = Zip<Repeat<usize>, Range<usize>>;
+type Left = Zip<Rev<Range<usize>>, Repeat<usize>>;
+type Right = Zip<Range<usize>, Repeat<usize>>;
+impl ForestIterator<Up, Down, Left, Right> {
     // Should this be called `new()` instead?
     fn neighbors(direction: Direction, row: usize, col: usize, size: usize) -> Self {
         match direction {
-            Direction::Up => Self::ColumnIter(repeat(row).zip(0..col)),
-            Direction::Down => Self::ColumnIter(repeat(row).zip(col + 1..size)),
-            Direction::Left => Self::RowIter((0..row).zip(repeat(col))),
-            Direction::Right => Self::RowIter((row + 1..size).zip(repeat(col))),
+            Direction::Up => Self::Up(repeat(row).zip((0..col).rev())),
+            Direction::Down => Self::Down(repeat(row).zip(col + 1..size)),
+            Direction::Left => Self::Left((0..row).rev().zip(repeat(col))),
+            Direction::Right => Self::Right((row + 1..size).zip(repeat(col))),
         }
     }
 }
@@ -111,30 +119,36 @@ impl Forest {
     // 33549
     // 35390
 
-    fn is_visible_from(&self, row: usize, col: usize, direction: Direction) -> bool {
+    fn scenic_score_from(&self, row: usize, col: usize, direction: Direction) -> usize {
         let this_height = self.trees[row][col].height;
         let mut neighbors = ForestIterator::neighbors(direction, row, col, self.size());
-        neighbors
-            .all(|(other_row, other_col)| this_height > self.trees[other_row][other_col].height)
+        let count = neighbors
+            .by_ref()
+            .take_while(|(other_row, other_col)| {
+                self.trees[*other_row][*other_col].height < this_height
+            })
+            .count();
+        count + usize::from(neighbors.next().is_some())
     }
 
-    fn is_visible(&self, row: usize, col: usize) -> bool {
-        Direction::iter().any(|direction| self.is_visible_from(row, col, direction))
+    fn scenic_score(&self, row: usize, col: usize) -> usize {
+        Direction::iter()
+            .map(|direction| self.scenic_score_from(row, col, direction))
+            .product()
     }
 }
 
-fn count_visible(contents: &str) -> Result<usize> {
+fn max_scenic_score(contents: &str) -> Result<usize> {
     let forest = contents.parse::<Forest>()?;
 
     let size = forest.size();
 
-    let num_visible_trees = (0..size)
+    (0..size)
         .flat_map(|col_num| (0..size).zip(repeat(col_num)))
         .par_bridge()
-        .filter_map(|(row_num, col_num)| forest.is_visible(row_num, col_num).then_some(true))
-        .count();
-
-    Ok(num_visible_trees)
+        .map(|(row_num, col_num)| forest.scenic_score(row_num, col_num))
+        .max()
+        .context("max() was called on an empty list")
 }
 
 static INPUT_FILE: &str = "../inputs/day_08.input";
@@ -143,9 +157,9 @@ fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let num_visible_trees = count_visible(&contents)?;
+    let max_score = max_scenic_score(&contents)?;
 
-    println!("The number of visible trees was {num_visible_trees}");
+    println!("The maximum scenic score was {max_score}");
 
     Ok(())
 }
@@ -157,7 +171,7 @@ mod test {
     #[test]
     fn sample_input() {
         let s = "30373\n25512\n65332\n33549\n35390";
-        let num_visible = count_visible(s).unwrap();
+        let num_visible = max_scenic_score(s).unwrap();
         assert_eq!(21, num_visible);
     }
 }
