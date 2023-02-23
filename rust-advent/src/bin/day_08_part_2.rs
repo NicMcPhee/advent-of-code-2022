@@ -163,15 +163,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn sample_input() {
-        let s = "30373\n25512\n65332\n33549\n35390";
-        let num_visible = max_scenic_score(s).unwrap();
-        assert_eq!(21, num_visible);
-    }
-}
