@@ -10,13 +10,13 @@ use anyhow::{bail, Context, Result};
 static INPUT_FILE: &str = "../inputs/day_02.input";
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum RPS {
+enum Rps {
     Rock = 1,
     Paper = 2,
     Scissors = 3,
 }
 
-impl FromStr for RPS {
+impl FromStr for Rps {
     type Err = anyhow::Error;
 
     fn from_str(c: &str) -> Result<Self> {
@@ -29,7 +29,7 @@ impl FromStr for RPS {
     }
 }
 
-impl TryFrom<i8> for RPS {
+impl TryFrom<i8> for Rps {
     type Error = anyhow::Error;
 
     fn try_from(i: i8) -> Result<Self> {
@@ -46,7 +46,7 @@ impl TryFrom<i8> for RPS {
 //   of `&self` (i.e., a 64-bit value). Does it really make a
 //   difference? Clippy seemed to think so, but it would be interesting
 //   to see what the actual impact is.
-impl RPS {
+impl Rps {
     fn game_score(self, their_move: Self) -> u32 {
         if self.beats() == their_move {
             6
@@ -94,9 +94,9 @@ mod beats_tests {
 
     #[test]
     fn beats_check() {
-        assert_eq!(RPS::Rock.beats(), RPS::Scissors);
-        assert_eq!(RPS::Paper.beats(), RPS::Rock);
-        assert_eq!(RPS::Scissors.beats(), RPS::Paper);
+        assert_eq!(Rps::Rock.beats(), Rps::Scissors);
+        assert_eq!(Rps::Paper.beats(), Rps::Rock);
+        assert_eq!(Rps::Scissors.beats(), Rps::Paper);
     }
 }
 
@@ -129,9 +129,9 @@ mod score_tests {
 
     #[test]
     fn we_play_rock() {
-        assert_eq!(3, RPS::Rock.game_score(RPS::Rock));
-        assert_eq!(0, RPS::Rock.game_score(RPS::Paper));
-        assert_eq!(6, RPS::Rock.game_score(RPS::Scissors));
+        assert_eq!(3, Rps::Rock.game_score(Rps::Rock));
+        assert_eq!(0, Rps::Rock.game_score(Rps::Paper));
+        assert_eq!(6, Rps::Rock.game_score(Rps::Scissors));
     }
 }
 
@@ -152,7 +152,7 @@ fn process_game(line: &str) -> Result<u32> {
     let their_move = parts
         .next()
         .with_context(|| format!("Missing first move on line '{line}'"))?
-        .parse::<RPS>()?;
+        .parse::<Rps>()?;
 
     let outcome = parts
         .next()

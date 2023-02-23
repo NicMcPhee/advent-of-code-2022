@@ -103,7 +103,7 @@ impl Stacks {
             .iter()
             .map(|s| {
                 s.last().copied().with_context(|| {
-                    format!("We tried to take the top of an empty stack: {:?}", self)
+                    format!("We tried to take the top of an empty stack: {self:?}")
                 })
             })
             .collect::<Result<String>>()
