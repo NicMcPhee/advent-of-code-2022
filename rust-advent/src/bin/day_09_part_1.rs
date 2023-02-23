@@ -97,19 +97,26 @@ impl BridgeState {
     }
 
     fn update_tail(&mut self) {
-        let Position { x, y } = self.head.dist(&self.tail);
-        if x == -2 {
-            self.tail.x -= 1;
-            self.tail.y = self.head.y;
-        } else if x == 2 {
-            self.tail.x += 1;
-            self.tail.y = self.head.y;
-        } else if y == -2 {
-            self.tail.x = self.head.x;
-            self.tail.y -= 1;
-        } else if y == 2 {
-            self.tail.x = self.head.x;
-            self.tail.y += 1;
+        match self.head.dist(&self.tail) {
+            Position { x: -2, y: _ } => {
+                self.tail.x -= 1;
+                self.tail.y = self.head.y;
+            }
+            Position { x: 2, y: _ } => {
+                self.tail.x += 1;
+                self.tail.y = self.head.y;
+            }
+            Position { x: _, y: -2 } => {
+                self.tail.x = self.head.x;
+                self.tail.y -= 1;
+            }
+            Position { x: _, y: 2 } => {
+                self.tail.x = self.head.x;
+                self.tail.y += 1;
+            }
+            _ =>
+                /* Do nothing, the tail doesn't have to move */
+                {}
         }
     }
 
