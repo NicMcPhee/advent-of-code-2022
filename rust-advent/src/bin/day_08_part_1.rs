@@ -122,7 +122,7 @@ fn count_visible(contents: &str) -> Result<usize> {
     let num_visible_trees = (0..size)
         .flat_map(|col_num| (0..size).zip(repeat(col_num)))
         .par_bridge()
-        .filter_map(|(row_num, col_num)| forest.is_visible(row_num, col_num).then_some(true))
+        .filter(|(row_num, col_num)| forest.is_visible(*row_num, *col_num))
         .count();
 
     Ok(num_visible_trees)
