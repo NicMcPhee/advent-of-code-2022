@@ -5,8 +5,7 @@
 
 use std::{
     fs::{self},
-    iter::{repeat, Repeat, Rev, Zip},
-    ops::Range,
+    iter::repeat,
     str::FromStr,
 };
 
@@ -62,48 +61,22 @@ enum Direction {
     Right,
 }
 
-// TODO: Is there a way to not have such specific types in
-//   the parameters for these variants? I generally really like
-//   this approach, but these types seem super specific to me
-//   in a way that seems potentially fragile.
-enum ForestIterator<UP, DOWN, LEFT, RIGHT> {
-    Up(UP),
-    Down(DOWN),
-    Left(LEFT),
-    Right(RIGHT),
-}
-
-impl<UP, DOWN, LEFT, RIGHT, I> Iterator for ForestIterator<UP, DOWN, LEFT, RIGHT>
-where
-    UP: Iterator<Item = I>,
-    DOWN: Iterator<Item = I>,
-    LEFT: Iterator<Item = I>,
-    RIGHT: Iterator<Item = I>,
-{
-    type Item = I;
+struct ForestIterator<T>(Box<dyn Iterator<Item = T>>);
+impl<T> Iterator for ForestIterator<T> {
+    type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Up(iter) => iter.next(),
-            Self::Down(iter) => iter.next(),
-            Self::Left(iter) => iter.next(),
-            Self::Right(iter) => iter.next(),
-        }
+        self.0.next()
     }
 }
 
-type Up = Zip<Repeat<usize>, Rev<Range<usize>>>;
-type Down = Zip<Repeat<usize>, Range<usize>>;
-type Left = Zip<Rev<Range<usize>>, Repeat<usize>>;
-type Right = Zip<Range<usize>, Repeat<usize>>;
-impl ForestIterator<Up, Down, Left, Right> {
-    // Should this be called `new()` instead?
+impl ForestIterator<(usize, usize)> {
     fn neighbors(direction: Direction, row: usize, col: usize, size: usize) -> Self {
         match direction {
-            Direction::Up => Self::Up(repeat(row).zip((0..col).rev())),
-            Direction::Down => Self::Down(repeat(row).zip(col + 1..size)),
-            Direction::Left => Self::Left((0..row).rev().zip(repeat(col))),
-            Direction::Right => Self::Right((row + 1..size).zip(repeat(col))),
+            Direction::Up => Self(Box::new(repeat(row).zip((0..col).rev()))),
+            Direction::Down => Self(Box::new(repeat(row).zip(col + 1..size))),
+            Direction::Left => Self(Box::new((0..row).rev().zip(repeat(col)))),
+            Direction::Right => Self(Box::new((row + 1..size).zip(repeat(col)))),
         }
     }
 }
