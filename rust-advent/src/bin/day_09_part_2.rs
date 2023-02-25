@@ -58,7 +58,7 @@ impl FromStr for Move {
     }
 }
 
-#[derive(Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct Position {
     x: isize,
     y: isize,
@@ -84,9 +84,9 @@ impl Position {
 
 type Visited = HashSet<Position>;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct BridgeState {
-    knots: [Position; 2],
+    knots: [Position; 10],
     visited: Visited,
 }
 
@@ -98,22 +98,18 @@ impl BridgeState {
     fn update_knot(&mut self, knot_to_update: usize) {
         let preceding_knot = self.knots[knot_to_update - 1];
         let mut current_knot = &mut self.knots[knot_to_update];
-        match preceding_knot.dist(&current_knot) {
-            Position { x: -2, y: _ } => {
-                current_knot.x -= 1;
-                current_knot.y = preceding_knot.y;
+        match preceding_knot.dist(current_knot) {
+            Position { x, y } if x.abs() == 2 => {
+                current_knot.x += x.signum();
+                match y {
+                    -2 => current_knot.y -= 1,
+                    2 => current_knot.y += 1,
+                    _ => current_knot.y = preceding_knot.y,
+                }
             }
-            Position { x: 2, y: _ } => {
-                current_knot.x += 1;
-                current_knot.y = preceding_knot.y;
-            }
-            Position { x: _, y: -2 } => {
+            Position { y, .. } if y.abs() == 2 => {
                 current_knot.x = preceding_knot.x;
-                current_knot.y -= 1;
-            }
-            Position { x: _, y: 2 } => {
-                current_knot.x = preceding_knot.x;
-                current_knot.y += 1;
+                current_knot.y += y.signum();
             }
             _ =>
                 /* Do nothing, the tail doesn't have to move */
@@ -123,8 +119,10 @@ impl BridgeState {
 
     fn process_direction(&mut self, d: Direction) {
         self.move_head(d);
-        self.update_knot(1);
-        self.visited.insert(self.knots[1]);
+        for i in 1..=9 {
+            self.update_knot(i);
+        }
+        self.visited.insert(self.knots[9]);
     }
 
     fn process_move(&mut self, m: &Move) {
@@ -150,4 +148,26 @@ fn main() -> Result<()> {
     println!("The number of visited positions was {num_visited}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_up_example() {
+        let mut bridge_state = BridgeState::default();
+        let moves = [
+            Move {
+                direction: Direction::Right,
+                count: 4,
+            },
+            Move {
+                direction: Direction::Up,
+                count: 4,
+            },
+        ];
+        bridge_state.process_moves(&moves);
+        println!("The final bridge state is {bridge_state:?}");
+    }
 }
