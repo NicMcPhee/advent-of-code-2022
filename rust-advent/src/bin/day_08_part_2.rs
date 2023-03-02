@@ -53,6 +53,10 @@ impl FromStr for Forest {
     }
 }
 
+// TODO: As an alternative suggested by esitsu@Twitch, we could
+// skip the whole `Box` thing and bake the types into the `Direction`
+// enum. I might go play with that sometime.
+
 #[derive(EnumIter, Clone, Copy)]
 enum Direction {
     Up,
