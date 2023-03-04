@@ -4,7 +4,7 @@
 #![warn(clippy::expect_used)]
 
 use std::{
-    fs,
+    fs, mem,
     str::{FromStr, Lines},
 };
 
@@ -114,6 +114,7 @@ impl Monkey {
     }
 }
 
+#[derive(Debug)]
 struct MonkeyState {
     monkeys: Vec<Monkey>,
     items: Vec<Vec<usize>>,
@@ -121,10 +122,13 @@ struct MonkeyState {
 }
 
 impl MonkeyState {
-    fn new(monkeys: Vec<Monkey>) -> Self {
+    fn new(mut monkeys: Vec<Monkey>) -> Self {
         let num_monkeys = monkeys.len();
         Self {
-            items: monkeys.iter().map(|m| m.items.clone()).collect::<Vec<_>>(),
+            items: monkeys
+                .iter_mut()
+                .map(|m| mem::take(&mut m.items))
+                .collect::<Vec<_>>(),
             monkeys,
             inspection_count: vec![0; num_monkeys],
         }
@@ -155,6 +159,8 @@ fn main() -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
 
     let state = MonkeyState::new(monkeys);
+
+    println!("The initial state is {state:?}");
 
     let final_state = state.process_monkeys();
 
