@@ -124,8 +124,8 @@ impl MonkeyState {
     fn new(monkeys: Vec<Monkey>) -> Self {
         let num_monkeys = monkeys.len();
         Self {
+            items: monkeys.iter().map(|m| m.items.clone()).collect::<Vec<_>>(),
             monkeys,
-            items: vec![vec![]; num_monkeys],
             inspection_count: vec![0; num_monkeys],
         }
     }
