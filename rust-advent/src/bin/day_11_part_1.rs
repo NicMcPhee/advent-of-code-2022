@@ -45,6 +45,10 @@ struct Expression {
     right: Value,
 }
 
+// TODO: We really should have a `enum Operator`
+// type with `Add` and `Multiply` variants. Then if we
+// parse to those instead of holding a character, this
+// wouldn't need to return a `Result`.
 impl Expression {
     fn evaluate(&self, old: usize) -> Result<usize> {
         let other_value = self.right.evaluate(old);
