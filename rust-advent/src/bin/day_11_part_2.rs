@@ -151,12 +151,10 @@ struct MonkeyState {
 
 impl MonkeyState {
     fn new(monkeys: Vec<Monkey>) -> Self {
-        let num_monkeys = monkeys.len();
-        let lcm = monkeys.iter().map(|m| m.test_value).product();
         Self {
+            inspection_count: vec![0; monkeys.len()],
+            lcm: monkeys.iter().map(|m| m.test_value).product(),
             monkeys,
-            inspection_count: vec![0; num_monkeys],
-            lcm,
         }
     }
 
