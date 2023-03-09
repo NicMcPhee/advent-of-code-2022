@@ -8,7 +8,7 @@ use std::{
     str::{FromStr, Lines},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 static INPUT_FILE: &str = "../inputs/day_11.input";
 
@@ -16,6 +16,15 @@ static INPUT_FILE: &str = "../inputs/day_11.input";
 enum Value {
     Old,
     Int(usize),
+}
+
+impl Value {
+    const fn evaluate(&self, old: usize) -> usize {
+        match self {
+            Self::Old => old,
+            Self::Int(value) => *value,
+        }
+    }
 }
 
 impl FromStr for Value {
@@ -31,8 +40,20 @@ impl FromStr for Value {
 
 #[derive(Debug)]
 struct Expression {
+    // Always '+' or '*'
     operator: char,
     right: Value,
+}
+
+impl Expression {
+    fn evaluate(&self, old: usize) -> Result<usize> {
+        let other_value = self.right.evaluate(old);
+        match self.operator {
+            '+' => Ok(old + other_value),
+            '*' => Ok(old * other_value),
+            _ => bail!("Illegal operator character '{}'", self.operator),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -117,37 +138,63 @@ impl Monkey {
 #[derive(Debug)]
 struct MonkeyState {
     monkeys: Vec<Monkey>,
-    items: Vec<Vec<usize>>,
     inspection_count: Vec<usize>,
 }
 
 impl MonkeyState {
-    fn new(mut monkeys: Vec<Monkey>) -> Self {
+    fn new(monkeys: Vec<Monkey>) -> Self {
         let num_monkeys = monkeys.len();
         Self {
-            items: monkeys
-                .iter_mut()
-                .map(|m| mem::take(&mut m.items))
-                .collect::<Vec<_>>(),
             monkeys,
             inspection_count: vec![0; num_monkeys],
         }
     }
 
-    fn process_monkeys(self) -> Self {
+    fn process_monkeys(self) -> Result<Self> {
         let num_monkeys = self.monkeys.len();
 
-        let repeated_monkeys = (0..num_monkeys).cycle().take(20 * num_monkeys);
+        let mut repeated_monkeys = (0..num_monkeys).cycle().take(20 * num_monkeys);
 
-        repeated_monkeys.fold(self, Self::process_monkey)
+        repeated_monkeys.try_fold(self, Self::process_monkey)
     }
 
-    fn process_monkey(self, monkey_number: usize) -> Self {
-        todo!()
+    //  Monkey 0:
+    //   Monkey inspects an item with a worry level of 79.
+    //     Worry level is multiplied by 19 to 1501.
+    //     Monkey gets bored with item. Worry level is divided by 3 to 500.
+    //     Current worry level is not divisible by 23.
+    //     Item with worry level 500 is thrown to monkey 3.
+    //   Monkey inspects an item with a worry level of 98.
+    //     Worry level is multiplied by 19 to 1862.
+    //     Monkey gets bored with item. Worry level is divided by 3 to 620.
+    //     Current worry level is not divisible by 23.
+    //     Item with worry level 620 is thrown to monkey 3.
+
+    fn process_monkey(mut self, monkey_number: usize) -> Result<Self> {
+        mem::take(&mut self.monkeys[monkey_number].items)
+            .into_iter()
+            .try_fold(self, |ms, worry_level| {
+                ms.process_item(monkey_number, worry_level)
+            })
     }
 
-    fn monkey_business(&self) -> usize {
-        todo!()
+    fn process_item(mut self, monkey_number: usize, worry_level: usize) -> Result<Self> {
+        let monkey = &self.monkeys[monkey_number];
+        let worry_level = monkey.operation.evaluate(worry_level)? / 3;
+        #[allow(clippy::match_bool)]
+        let target = match worry_level % monkey.test_value == 0 {
+            true => monkey.true_target,
+            false => monkey.false_target,
+        };
+        self.monkeys[target].items.push(worry_level);
+        self.inspection_count[monkey_number] += 1;
+        Ok(self)
+    }
+
+    fn monkey_business(&mut self) -> usize {
+        self.inspection_count.sort_unstable();
+        self.inspection_count.reverse();
+        self.inspection_count[0] * self.inspection_count[1]
     }
 }
 
@@ -162,7 +209,9 @@ fn main() -> Result<()> {
 
     println!("The initial state is {state:?}");
 
-    let final_state = state.process_monkeys();
+    let mut final_state = state.process_monkeys()?;
+
+    println!("The final state is {final_state:?}");
 
     println!("The monkey business was {}", final_state.monkey_business());
 
