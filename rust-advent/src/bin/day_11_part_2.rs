@@ -8,7 +8,7 @@ use std::{
     str::{FromStr, Lines},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_11.input";
 
