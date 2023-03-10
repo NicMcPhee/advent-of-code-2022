@@ -141,6 +141,7 @@ mod stacks_from_str_tests {
 [N] [C]                                           
 [Z] [M] [P]                                       
  1   2   3";
+        #[allow(clippy::unwrap_used)]
         let stacks: Stacks = input.parse().unwrap();
         assert_eq!(2, stacks.stacks[0].len());
         assert_eq!(3, stacks.stacks[1].len());
