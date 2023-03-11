@@ -72,7 +72,7 @@ impl FromStr for Terrain {
             for (y, c) in line.chars().enumerate() {
                 let height = Height::new(c);
                 match height {
-                    Height::Start => start = Some(Location { x, y, dist: u32::MAX }),
+                    Height::Start => start = Some(Location { x, y, dist: 0 }),
                     Height::End => end = Some(Location { x, y, dist: u32::MAX }),
                     _ => { /* Do nothing */}
                 };
