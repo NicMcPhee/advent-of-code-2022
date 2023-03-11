@@ -27,11 +27,30 @@ impl Height {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Location {
     x: usize,
     y: usize,
     dist: u32,
+}
+
+impl PartialEq for Location {
+    fn eq(&self, other: &Self) -> bool {
+        self.dist == other.dist
+    }
+}
+impl Eq for Location {}
+
+impl Ord for Location {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.dist.cmp(&other.dist) 
+    }
+}
+
+impl PartialOrd for Location {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[derive(Debug)]
