@@ -4,8 +4,9 @@
 #![warn(clippy::expect_used)]
 
 use std::{
+    collections::BinaryHeap,
     fs::{self},
-    str::FromStr, collections::BinaryHeap,
+    str::FromStr,
 };
 
 use anyhow::{Context, Result};
@@ -43,7 +44,7 @@ impl Eq for Location {}
 
 impl Ord for Location {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.dist.cmp(&other.dist) 
+        self.dist.cmp(&other.dist)
     }
 }
 
@@ -73,8 +74,14 @@ impl FromStr for Terrain {
                 let height = Height::new(c);
                 match height {
                     Height::Start => start = Some(Location { x, y, dist: 0 }),
-                    Height::End => end = Some(Location { x, y, dist: u32::MAX }),
-                    _ => { /* Do nothing */}
+                    Height::End => {
+                        end = Some(Location {
+                            x,
+                            y,
+                            dist: u32::MAX,
+                        })
+                    }
+                    _ => { /* Do nothing */ }
                 };
                 row_heights.push(height);
             }
@@ -82,7 +89,11 @@ impl FromStr for Terrain {
         }
         let start = start.context("We never found the start location")?;
         let end = end.context("We never found the end location")?;
-        Ok(Terrain { heights, start, end })
+        Ok(Terrain {
+            heights,
+            start,
+            end,
+        })
     }
 }
 
@@ -99,8 +110,6 @@ impl Terrain {
             if let Height::End = height {
                 return location.dist;
             }
-
-
         }
 
         todo!()
