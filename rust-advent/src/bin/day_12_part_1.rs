@@ -5,7 +5,7 @@
 
 use std::{
     fs::{self},
-    str::FromStr,
+    str::FromStr, collections::BinaryHeap,
 };
 
 use anyhow::{Context, Result};
@@ -86,7 +86,26 @@ impl FromStr for Terrain {
     }
 }
 
-impl Terrain {}
+impl Terrain {
+    fn shortest_path_length(&self) -> u32 {
+        // TODO: Need a HashMap of Location to u32 that are the shortest known
+        //   paths to given locations.
+        let mut open_list: BinaryHeap<Location> = BinaryHeap::new();
+        open_list.push(self.start.clone());
+
+        while let Some(location) = open_list.pop() {
+            let height = &self.heights[location.y][location.x];
+
+            if let Height::End = height {
+                return location.dist;
+            }
+
+
+        }
+
+        todo!()
+    }
+}
 
 static INPUT_FILE: &str = "../inputs/day_12_test.input";
 
@@ -97,7 +116,9 @@ fn main() -> Result<()> {
 
     println!("{terrain:?}");
 
-    todo!();
+    let shortest_path_length = terrain.shortest_path_length();
+
+    println!("The shortest path length was {shortest_path_length}.");
 
     Ok(())
 }
