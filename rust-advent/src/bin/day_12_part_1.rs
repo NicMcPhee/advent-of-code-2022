@@ -4,12 +4,14 @@
 #![warn(clippy::expect_used)]
 
 use std::{
-    collections::BinaryHeap,
+    collections::{BinaryHeap, HashMap},
     fs::{self},
     str::FromStr,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[derive(Debug)]
 enum Height {
@@ -19,38 +21,48 @@ enum Height {
 }
 
 impl Height {
-    fn new(c: char) -> Self {
+    const fn new(c: char) -> Self {
         match c {
             'S' => Self::Start, // Start has height 0
             'E' => Self::End,   // End has height 26
-            _ => Self::Height(c as u8 - 'a' as u8),
+            _ => Self::Height(c as u8 - b'a'),
+        }
+    }
+
+    const fn get_height(&self) -> u8 {
+        match self {
+            Self::Start => 0,
+            Self::End => 25,
+            Self::Height(h) => *h,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(EnumIter)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct Location {
-    x: usize,
-    y: usize,
-    dist: u32,
+    x: usize, // row
+    y: usize, // col
 }
 
-impl PartialEq for Location {
-    fn eq(&self, other: &Self) -> bool {
-        self.dist == other.dist
-    }
-}
-impl Eq for Location {}
-
-impl Ord for Location {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.dist.cmp(&other.dist)
-    }
-}
-
-impl PartialOrd for Location {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl Location {
+    fn neighbor(&self, direction: &Direction) -> Option<Self> {
+        let mut x = self.x;
+        let mut y = self.y;
+        match direction {
+            Direction::Up => y = y.checked_sub(1)?,
+            Direction::Down => y += 1,
+            Direction::Left => x = x.checked_sub(1)?,
+            Direction::Right => x += 1,
+        }
+        Some(Self { x, y })
     }
 }
 
@@ -58,7 +70,7 @@ impl PartialOrd for Location {
 struct Terrain {
     heights: Vec<Vec<Height>>,
     start: Location,
-    end: Location,
+    // end: Location,
 }
 
 impl FromStr for Terrain {
@@ -66,53 +78,95 @@ impl FromStr for Terrain {
 
     fn from_str(s: &str) -> Result<Self> {
         let mut start: Option<Location> = None;
-        let mut end: Option<Location> = None;
+        // let mut end: Option<Location> = None;
         let mut heights: Vec<Vec<Height>> = Vec::new();
         for (x, line) in s.lines().enumerate() {
             let mut row_heights: Vec<Height> = Vec::with_capacity(line.len());
             for (y, c) in line.chars().enumerate() {
                 let height = Height::new(c);
-                match height {
-                    Height::Start => start = Some(Location { x, y, dist: 0 }),
-                    Height::End => {
-                        end = Some(Location {
-                            x,
-                            y,
-                            dist: u32::MAX,
-                        })
-                    }
-                    _ => { /* Do nothing */ }
-                };
+                if matches!(height, Height::Start) {
+                    start = Some(Location { x, y });
+                }
+                // match height {
+                //     Height::Start => start = Some(Location { x, y }),
+                //     Height::End => end = Some(Location { x, y }),
+                //     _ => { /* Do nothing */ }
+                // };
                 row_heights.push(height);
             }
             heights.push(row_heights);
         }
         let start = start.context("We never found the start location")?;
-        let end = end.context("We never found the end location")?;
-        Ok(Terrain {
+        // let end = end.context("We never found the end location")?;
+        Ok(Self {
             heights,
             start,
-            end,
+            // end,
         })
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+struct Node {
+    // TODO: Turn this back into a `u32` since distances shouldn't ever be negative.
+    dist: i32,
+    location: Location,
+}
+
 impl Terrain {
-    fn shortest_path_length(&self) -> u32 {
-        // TODO: Need a HashMap of Location to u32 that are the shortest known
+    fn get_height(&self, location: &Location) -> Option<u8> {
+        self.heights
+            .get(location.x)
+            .and_then(|row| row.get(location.y))
+            .map(Height::get_height)
+    }
+
+    fn shortest_path_length(&self) -> Result<u32> {
+        // This HashMap maps `Location`s to `u32`, keeping track of the shortest known
         //   paths to given locations.
-        let mut open_list: BinaryHeap<Location> = BinaryHeap::new();
-        open_list.push(self.start.clone());
+        let mut best_distance = HashMap::new();
 
-        while let Some(location) = open_list.pop() {
-            let height = &self.heights[location.y][location.x];
+        let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
+        open_list.push(Node {
+            location: self.start.clone(),
+            dist: 0,
+        });
 
-            if let Height::End = height {
-                return location.dist;
+        while let Some(node) = open_list.pop() {
+            let height = &self.heights[node.location.x][node.location.y];
+
+            if matches!(height, Height::End) {
+                // TODO: Skip this `try_into()` when we go back to unsized distances.
+                return Ok((-node.dist).try_into()?);
+            }
+
+            let bd = best_distance.get(&node.location).copied();
+            // println!("Processing {node:?} with height {height:?} and best distance {bd:?}");
+            if let Some(dist) = bd {
+                if dist <= node.dist {
+                    continue;
+                }
+            }
+
+            best_distance.insert(node.location.clone(), node.dist);
+            let accessible_locations = Direction::iter()
+                .filter_map(|direction| node.location.neighbor(&direction))
+                .map(|location| (self.get_height(&location), location))
+                .filter_map(|(ht, location)| {
+                    ht.and_then(|ht| (ht <= height.get_height() + 1).then_some(location))
+                });
+            for location in accessible_locations {
+                // TODO: Turn this back into +1.
+                let new_node = Node {
+                    location,
+                    dist: node.dist - 1,
+                };
+                // println!("\tPushing node {new_node:?}");
+                open_list.push(new_node);
             }
         }
 
-        todo!()
+        bail!("We failed to find the end location!")
     }
 }
 
@@ -123,9 +177,9 @@ fn main() -> Result<()> {
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
         .parse::<Terrain>()?;
 
-    println!("{terrain:?}");
+    // println!("{terrain:?}");
 
-    let shortest_path_length = terrain.shortest_path_length();
+    let shortest_path_length = terrain.shortest_path_length()?;
 
     println!("The shortest path length was {shortest_path_length}.");
 
