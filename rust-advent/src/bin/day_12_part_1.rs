@@ -4,9 +4,10 @@
 #![warn(clippy::expect_used)]
 
 use std::{
+    cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fs::{self},
-    str::FromStr, cmp::Reverse,
+    str::FromStr,
 };
 
 use anyhow::{bail, Context, Result};
@@ -48,21 +49,21 @@ enum Direction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct Location {
-    x: usize, // row
-    y: usize, // col
+    row: usize,
+    col: usize,
 }
 
 impl Location {
     fn neighbor(&self, direction: &Direction) -> Option<Self> {
-        let mut x = self.x;
-        let mut y = self.y;
+        let mut row = self.row;
+        let mut col = self.col;
         match direction {
-            Direction::Up => y = y.checked_sub(1)?,
-            Direction::Down => y += 1,
-            Direction::Left => x = x.checked_sub(1)?,
-            Direction::Right => x += 1,
+            Direction::Up => col = col.checked_sub(1)?,
+            Direction::Down => col += 1,
+            Direction::Left => row = row.checked_sub(1)?,
+            Direction::Right => row += 1,
         }
-        Some(Self { x, y })
+        Some(Self { row, col })
     }
 }
 
@@ -70,7 +71,6 @@ impl Location {
 struct Terrain {
     heights: Vec<Vec<Height>>,
     start: Location,
-    // end: Location,
 }
 
 impl FromStr for Terrain {
@@ -78,31 +78,20 @@ impl FromStr for Terrain {
 
     fn from_str(s: &str) -> Result<Self> {
         let mut start: Option<Location> = None;
-        // let mut end: Option<Location> = None;
         let mut heights: Vec<Vec<Height>> = Vec::new();
-        for (x, line) in s.lines().enumerate() {
+        for (row, line) in s.lines().enumerate() {
             let mut row_heights: Vec<Height> = Vec::with_capacity(line.len());
-            for (y, c) in line.chars().enumerate() {
+            for (col, c) in line.chars().enumerate() {
                 let height = Height::new(c);
                 if matches!(height, Height::Start) {
-                    start = Some(Location { x, y });
+                    start = Some(Location { row, col });
                 }
-                // match height {
-                //     Height::Start => start = Some(Location { x, y }),
-                //     Height::End => end = Some(Location { x, y }),
-                //     _ => { /* Do nothing */ }
-                // };
                 row_heights.push(height);
             }
             heights.push(row_heights);
         }
         let start = start.context("We never found the start location")?;
-        // let end = end.context("We never found the end location")?;
-        Ok(Self {
-            heights,
-            start,
-            // end,
-        })
+        Ok(Self { heights, start })
     }
 }
 
@@ -115,9 +104,22 @@ struct Node {
 impl Terrain {
     fn get_height(&self, location: &Location) -> Option<u8> {
         self.heights
-            .get(location.x)
-            .and_then(|row| row.get(location.y))
+            .get(location.row)
+            .and_then(|row| row.get(location.col))
             .map(Height::get_height)
+    }
+
+    fn accessible_locations<'a>(
+        &'a self,
+        node: &'a Node,
+        current_height: u8,
+    ) -> impl Iterator<Item = Location> + 'a {
+        Direction::iter()
+            .filter_map(|direction| node.location.neighbor(&direction))
+            .map(|location| (self.get_height(&location), location))
+            .filter_map(move |(ht, location)| {
+                ht.and_then(|ht| (ht <= current_height + 1).then_some(location))
+            })
     }
 
     fn shortest_path_length(&self) -> Result<u32> {
@@ -132,7 +134,7 @@ impl Terrain {
         }));
 
         while let Some(Reverse(node)) = open_list.pop() {
-            let height = &self.heights[node.location.x][node.location.y];
+            let height = &self.heights[node.location.row][node.location.col];
 
             if matches!(height, Height::End) {
                 return Ok(node.dist);
@@ -147,13 +149,12 @@ impl Terrain {
             }
 
             best_distance.insert(node.location.clone(), node.dist);
-            let accessible_locations = Direction::iter()
-                .filter_map(|direction| node.location.neighbor(&direction))
-                .map(|location| (self.get_height(&location), location))
-                .filter_map(|(ht, location)| {
-                    ht.and_then(|ht| (ht <= height.get_height() + 1).then_some(location))
-                });
-            for location in accessible_locations {
+            let accessible = self.accessible_locations(&node, height.get_height());
+            // I could replace this `for` loop with a `for_each()` call.
+            // That would probably make the most sense if I brought the body
+            // of `self.accessible_locations` back to this function, and
+            // I'm not sure I'm jazzed about that.
+            for location in accessible {
                 let new_node = Node {
                     location,
                     dist: node.dist + 1,
