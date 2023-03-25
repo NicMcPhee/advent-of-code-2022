@@ -6,7 +6,7 @@
 use std::{
     collections::{BinaryHeap, HashMap},
     fs::{self},
-    str::FromStr,
+    str::FromStr, cmp::Reverse,
 };
 
 use anyhow::{bail, Context, Result};
@@ -108,8 +108,7 @@ impl FromStr for Terrain {
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct Node {
-    // TODO: Turn this back into a `u32` since distances shouldn't ever be negative.
-    dist: i32,
+    dist: u32,
     location: Location,
 }
 
@@ -126,18 +125,17 @@ impl Terrain {
         //   paths to given locations.
         let mut best_distance = HashMap::new();
 
-        let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
-        open_list.push(Node {
+        let mut open_list: BinaryHeap<Reverse<Node>> = BinaryHeap::new();
+        open_list.push(Reverse(Node {
             location: self.start.clone(),
             dist: 0,
-        });
+        }));
 
-        while let Some(node) = open_list.pop() {
+        while let Some(Reverse(node)) = open_list.pop() {
             let height = &self.heights[node.location.x][node.location.y];
 
             if matches!(height, Height::End) {
-                // TODO: Skip this `try_into()` when we go back to unsized distances.
-                return Ok((-node.dist).try_into()?);
+                return Ok(node.dist);
             }
 
             let bd = best_distance.get(&node.location).copied();
@@ -156,13 +154,12 @@ impl Terrain {
                     ht.and_then(|ht| (ht <= height.get_height() + 1).then_some(location))
                 });
             for location in accessible_locations {
-                // TODO: Turn this back into +1.
                 let new_node = Node {
                     location,
-                    dist: node.dist - 1,
+                    dist: node.dist + 1,
                 };
                 // println!("\tPushing node {new_node:?}");
-                open_list.push(new_node);
+                open_list.push(Reverse(new_node));
             }
         }
 
