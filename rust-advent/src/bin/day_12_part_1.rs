@@ -168,7 +168,7 @@ impl Terrain {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_12_test.input";
+static INPUT_FILE: &str = "../inputs/day_12.input";
 
 fn main() -> Result<()> {
     let terrain = fs::read_to_string(INPUT_FILE)
