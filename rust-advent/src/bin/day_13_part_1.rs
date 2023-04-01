@@ -1,101 +1,84 @@
-use itertools::Itertools;
-use std::{fs, str::{FromStr, Bytes}, iter::Peekable};
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::char;
+use nom::character::complete::newline;
+use nom::character::complete::u8;
+use nom::combinator::map;
+use nom::multi::separated_list0;
+use nom::sequence::separated_pair;
+use nom::{sequence::delimited, IResult};
+use std::fs;
 
 use anyhow::{Context, Result};
 
 #[derive(Debug)]
 enum Packet {
-    Value(i32),
+    Value(u8),
     List(Vec<Packet>),
 }
-
-impl FromStr for Packet {
-    type Err = anyhow::Error;
-
-    // [1,[2,[3,[4,[5,6,7]]]],8,9]
-    fn from_str(s: &str) -> Result<Self> {
-        fn parse_elements(bs: &mut Peekable<Bytes>) -> Result<Vec<Packet>> {
-            let mut packets = Vec::new();
-            while bs.peek().is_some() {
-                let first_packet = parse_single_element(bs)?;
-                packets.push(first_packet);
-                if bs.peek() == Some(&b']') {
-                    bs.next();
-                    break;
-                }
-                if bs.peek().is_some() {
-                    bs.next();
-                }
-            }
-            Ok(packets)
-        }
-
-        fn parse_single_element(bs: &mut Peekable<Bytes>) -> Result<Packet> {
-            if bs.peek() == Some(&b'[') {
-                bs.next();
-                let elements = parse_elements(bs)?;
-                bs.next(); // Remove the closing ']'
-                Ok(Packet::List(elements))
-            } else {
-                // Maybe use itertools `peeking_take_while`?
-                let mut value = 0;
-                while let Some(b) = bs.peek() {
-                    if b'0' <= *b && *b <= b'9' {
-                        value = 10*value + (*b - b'0') as i32;
-                        bs.next();
-                    } else {
-                        break;
-                    }
-                }
-                Ok(Packet::Value(value))
-            }
-        }
-
-        println!("Parsing {s}");
-        if s == "[]" {
-            return Ok(Self::List(Vec::new()));
-        }
-        let first_char = s.bytes().nth(0).context("The string to parse was empty")?;
-        if first_char == b'[' {
-            let packets = parse_elements(&mut s[1..s.len()].bytes().peekable())?;
-            Ok(Self::List(packets))
-        } else {
-            Ok(Self::Value(s.parse()?))
-        }
-    }
-}
-
 #[derive(Debug)]
 struct PacketPair {
     left: Packet,
     right: Packet,
 }
 
-impl FromStr for PacketPair {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let mut lines = s.lines();
-        let left = lines
-            .next()
-            .context("There were no lines in this packet pair")?
-            .parse()?;
-        let right = lines
-            .next()
-            .with_context(|| format!("There was only one line in this packet pair: {s}"))?
-            .parse()?;
-        Ok(PacketPair { left, right })
+impl PacketPair {
+    fn new((left, right): (Packet, Packet)) -> Self {
+        Self { left, right }
     }
+}
+
+/*
+[1,1,3,1,1]
+[1,1,5,1,1]
+
+[[1],[2,3,4]]
+[[1],4]
+
+[9]
+[[8,7,6]]
+
+[[4,4],4,4]
+[[4,4],4,4,4]
+
+[7,7,7,7]
+[7,7,7]
+
+[]
+[3]
+
+[[[]]]
+[[]]
+
+[1,[2,[3,[4,[5,6,7]]]],8,9]
+[1,[2,[3,[4,[5,6,0]]]],8,9]
+ */
+
+fn packet_pair_list(s: &str) -> IResult<&str, Vec<PacketPair>> {
+    separated_list0(tag("\n\n"), packet_pair)(s)
+}
+
+fn packet_pair(s: &str) -> IResult<&str, PacketPair> {
+    map(separated_pair(packet, newline, packet), PacketPair::new)(s)
+}
+
+fn element_list(s: &str) -> IResult<&str, Vec<Packet>> {
+    separated_list0(char(','), alt((map(u8, Packet::Value), packet)))(s)
+}
+
+fn packet(s: &str) -> IResult<&str, Packet> {
+    map(delimited(char('['), element_list, char(']')), Packet::List)(s)
 }
 
 static INPUT_FILE: &str = "../inputs/day_13_test.input";
 
 fn main() -> Result<()> {
-    let packet_pairs: Vec<PacketPair> = fs::read_to_string(INPUT_FILE)
-        .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
-        .split("\n\n")
-        .map(|s| s.parse::<PacketPair>())
-        .try_collect()?;
+    let contents = fs::read_to_string(INPUT_FILE)
+        .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
+
+    // If we use `?` instead of `unwrap()` then the `Err` variant can contain
+    // pointers into `contents` which can create lifetime issues.
+    let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned())?;
 
     println!("{packet_pairs:#?}");
 
