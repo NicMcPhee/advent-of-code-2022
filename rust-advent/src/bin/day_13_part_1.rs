@@ -11,7 +11,7 @@ use std::fs;
 
 use anyhow::{Context, Result};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Packet {
     Value(u8),
     List(Vec<Packet>),
@@ -22,9 +22,24 @@ struct PacketPair {
     right: Packet,
 }
 
+impl PartialOrd for Packet {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Value(l), Self::Value(r)) => l.partial_cmp(r),
+            (Self::List(ls), Self::List(rs)) => ls.partial_cmp(rs),
+            (Self::Value(l), Self::List(rs)) => vec![Self::Value(*l)].partial_cmp(rs),
+            (Self::List(ls), Self::Value(r)) => ls.partial_cmp(&vec![Self::Value(*r)]),
+        }
+    }
+}
+
 impl PacketPair {
     fn new((left, right): (Packet, Packet)) -> Self {
         Self { left, right }
+    }
+
+    fn is_ordered(&self) -> bool {
+        self.left < self.right
     }
 }
 
@@ -70,17 +85,22 @@ fn packet(s: &str) -> IResult<&str, Packet> {
     map(delimited(char('['), element_list, char(']')), Packet::List)(s)
 }
 
-static INPUT_FILE: &str = "../inputs/day_13_test.input";
+static INPUT_FILE: &str = "../inputs/day_13.input";
 
 fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    // If we use `?` instead of `unwrap()` then the `Err` variant can contain
-    // pointers into `contents` which can create lifetime issues.
     let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned())?;
 
-    println!("{packet_pairs:#?}");
+    let result = packet_pairs
+        .iter()
+        .enumerate()
+        .filter(|(_, packet_pair)| packet_pair.is_ordered()) // Give us just the correctly ordered pairs
+        .map(|(i, _)| i+1) // Give us the indices+1 of correctly ordered pairs
+        .sum::<usize>();
+
+    println!("The final sum was {result}.");
 
     Ok(())
 }
