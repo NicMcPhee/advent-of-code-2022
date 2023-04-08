@@ -23,80 +23,18 @@ struct PacketPair {
     right: Packet,
 }
 
-
-// // Original version
-// impl PartialOrd for Packet {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         match (self, other) {
-//             (Self::Value(l), Self::Value(r)) => l.partial_cmp(r),
-//             (Self::List(ls), Self::List(rs)) => ls.partial_cmp(rs),
-//             (Self::Value(l), Self::List(rs)) => vec![Self::Value(*l)].partial_cmp(rs),
-//             (Self::List(ls), Self::Value(r)) => ls.partial_cmp(&vec![Self::Value(*r)]),
-//         }
-//     }
-// }
-
-// // ikopor@Twitch's version
-// impl PartialOrd for Packet {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         match (self, other) {
-//             (Self::Value(l), Self::Value(r)) => l.partial_cmp(r),
-//             (Self::List(ls), Self::List(rs)) => ls.partial_cmp(rs),
-//             (Self::Value(l), Self::List(r)) => {
-//                 let l: &[Packet] = &[Self::Value(*l)];
-//                 l.partial_cmp(r)
-//             }
-//             (Self::List(_), Self::Value(_)) => other.partial_cmp(self).map(Ordering::reverse),
-//         }
-//     }
-// }
-
-// esitsu@Twitch's version
+// ikopor@Twitch's version
 impl PartialOrd for Packet {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
             (Self::Value(l), Self::Value(r)) => l.partial_cmp(r),
-            (Self::List(l), Self::List(r)) => l.partial_cmp(r),
-            (Self::Value(l), r @ Self::List(_)) => l.partial_cmp(r),
-            (l @ Self::List(_), Self::Value(r)) => l.partial_cmp(r),
-        }
-    }
-}
-
-impl PartialEq<Packet> for u8 {
-    fn eq(&self, other: &Packet) -> bool {
-        match other {
-            Packet::Value(val) => self == val,
-            Packet::List(_) => false,
-        }
-    }
-}
-
-impl PartialOrd<Packet> for u8 {
-    fn partial_cmp(&self, other: &Packet) -> Option<Ordering> {
-        match other {
-            Packet::Value(val) => self.partial_cmp(val),
-            Packet::List(list) => match &list[..] {
-                [] => Some(Ordering::Greater),
-                [item] => self.partial_cmp(item),
-                [item, ..] => match self.partial_cmp(item) {
-                    Some(Ordering::Equal) => Some(Ordering::Less),
-                    ord => ord,
-                }
+            (Self::List(ls), Self::List(rs)) => ls.partial_cmp(rs),
+            (Self::Value(l), Self::List(r)) => {
+                let l: &[Packet] = &[Self::Value(*l)];
+                l.partial_cmp(r)
             }
+            (Self::List(_), Self::Value(_)) => other.partial_cmp(self).map(Ordering::reverse),
         }
-    }
-}
-
-impl PartialEq<u8> for Packet {
-    fn eq(&self, other: &u8) -> bool {
-        other == self
-    }
-}
-
-impl PartialOrd<u8> for Packet {
-    fn partial_cmp(&self, other: &u8) -> Option<Ordering> {
-        other.partial_cmp(self).map(Ordering::reverse)
     }
 }
 
