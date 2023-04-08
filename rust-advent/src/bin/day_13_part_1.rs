@@ -1,3 +1,8 @@
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::expect_used)]
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::char;
@@ -30,7 +35,7 @@ impl PartialOrd for Packet {
             (Self::Value(l), Self::Value(r)) => l.partial_cmp(r),
             (Self::List(ls), Self::List(rs)) => ls.partial_cmp(rs),
             (Self::Value(l), Self::List(r)) => {
-                let l: &[Packet] = &[Self::Value(*l)];
+                let l: &[Self] = &[Self::Value(*l)];
                 l.partial_cmp(r)
             }
             (Self::List(_), Self::Value(_)) => other.partial_cmp(self).map(Ordering::reverse),
@@ -90,7 +95,7 @@ fn packet(s: &str) -> IResult<&str, Packet> {
     map(delimited(char('['), element_list, char(']')), Packet::List)(s)
 }
 
-fn compute_sum(packet_pairs: Vec<PacketPair>) -> usize {
+fn compute_sum(packet_pairs: &[PacketPair]) -> usize {
     packet_pairs
         .iter()
         .enumerate()
@@ -107,7 +112,7 @@ fn main() -> Result<()> {
 
     let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned())?;
 
-    let result = compute_sum(packet_pairs);
+    let result = compute_sum(&packet_pairs);
 
     println!("The final sum was {result}.");
 
