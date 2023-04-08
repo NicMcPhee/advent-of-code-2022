@@ -1,2 +1,4 @@
 .clj-kondo/
 .lsp/
+
+rust-advent/flamegraph.svg
