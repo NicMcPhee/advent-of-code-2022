@@ -60,7 +60,8 @@ fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let (_, packets) = packet_list(&contents).map_err(|e| e.to_owned())?;
+    let (_, packets) =
+        packet_list(&contents).map_err(nom::Err::<nom::error::Error<&str>>::to_owned)?;
 
     let divider_2 = Packet::divider_packet(2);
     let divider_6 = Packet::divider_packet(6);

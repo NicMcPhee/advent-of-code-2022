@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -9,10 +9,9 @@ use nom::combinator::map;
 use nom::multi::separated_list0;
 use nom::sequence::separated_pair;
 use nom::{sequence::delimited, IResult};
-use std::cmp::Ordering;
 use std::fs;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 #[derive(Debug, PartialEq, Clone)]
 enum Packet {
@@ -140,20 +139,28 @@ static INPUT_FILE: &str = "../inputs/day_13.input";
 
 fn compute_sum_benchmark(c: &mut Criterion) {
     let contents = fs::read_to_string(INPUT_FILE)
-        .with_context(|| format!("Failed to open file '{INPUT_FILE}'")).unwrap();
+        .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))
+        .unwrap();
 
-    let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned()).unwrap();
+    let (_, packet_pairs) = packet_pair_list(&contents)
+        .map_err(|e| e.to_owned())
+        .unwrap();
 
     let result = compute_sum(packet_pairs);
 
     println!("The final sum was {result}.");
 
     let contents = fs::read_to_string(INPUT_FILE)
-        .with_context(|| format!("Failed to open file '{INPUT_FILE}'")).unwrap();
+        .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))
+        .unwrap();
 
-    let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned()).unwrap();
+    let (_, packet_pairs) = packet_pair_list(&contents)
+        .map_err(|e| e.to_owned())
+        .unwrap();
 
-    c.bench_function("compute_sum", |b| b.iter(|| compute_sum(packet_pairs.clone())));
+    c.bench_function("compute_sum", |b| {
+        b.iter(|| compute_sum(packet_pairs.clone()))
+    });
 }
 
 criterion_group!(day_13_part_1_bench, compute_sum_benchmark);
