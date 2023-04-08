@@ -4,13 +4,11 @@
 #![warn(clippy::expect_used)]
 
 use nom::branch::alt;
-use nom::bytes::complete::tag;
 use nom::character::complete::char;
-use nom::character::complete::newline;
+use nom::character::complete::multispace1;
 use nom::character::complete::u8;
 use nom::combinator::map;
 use nom::multi::separated_list0;
-use nom::sequence::separated_pair;
 use nom::{sequence::delimited, IResult};
 use std::cmp::Ordering;
 use std::fs;
@@ -21,11 +19,6 @@ use anyhow::{Context, Result};
 enum Packet {
     Value(u8),
     List(Vec<Packet>),
-}
-#[derive(Debug)]
-struct PacketPair {
-    left: Packet,
-    right: Packet,
 }
 
 // ikopor@Twitch's version
@@ -43,48 +36,14 @@ impl PartialOrd for Packet {
     }
 }
 
-impl PacketPair {
-    fn new((left, right): (Packet, Packet)) -> Self {
-        Self { left, right }
-    }
-
-    fn is_ordered(&self) -> bool {
-        self.left < self.right
+impl Packet {
+    fn divider_packet(val: u8) -> Self {
+        Self::List(vec![Self::List(vec![Self::Value(val)])])
     }
 }
 
-/*
-[1,1,3,1,1]
-[1,1,5,1,1]
-
-[[1],[2,3,4]]
-[[1],4]
-
-[9]
-[[8,7,6]]
-
-[[4,4],4,4]
-[[4,4],4,4,4]
-
-[7,7,7,7]
-[7,7,7]
-
-[]
-[3]
-
-[[[]]]
-[[]]
-
-[1,[2,[3,[4,[5,6,7]]]],8,9]
-[1,[2,[3,[4,[5,6,0]]]],8,9]
- */
-
-fn packet_pair_list(s: &str) -> IResult<&str, Vec<PacketPair>> {
-    separated_list0(tag("\n\n"), packet_pair)(s)
-}
-
-fn packet_pair(s: &str) -> IResult<&str, PacketPair> {
-    map(separated_pair(packet, newline, packet), PacketPair::new)(s)
+fn packet_list(s: &str) -> IResult<&str, Vec<Packet>> {
+    separated_list0(multispace1, packet)(s)
 }
 
 fn element_list(s: &str) -> IResult<&str, Vec<Packet>> {
@@ -95,26 +54,33 @@ fn packet(s: &str) -> IResult<&str, Packet> {
     map(delimited(char('['), element_list, char(']')), Packet::List)(s)
 }
 
-fn compute_sum(packet_pairs: &[PacketPair]) -> usize {
-    packet_pairs
-        .iter()
-        .enumerate()
-        .filter(|(_, packet_pair)| packet_pair.is_ordered()) // Give us just the correctly ordered pairs
-        .map(|(i, _)| i + 1) // Give us the indices+1 of correctly ordered pairs
-        .sum::<usize>()
-}
-
 static INPUT_FILE: &str = "../inputs/day_13.input";
 
 fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned())?;
+    let (_, packets) = packet_list(&contents).map_err(|e| e.to_owned())?;
 
-    let result = compute_sum(&packet_pairs);
+    let divider_2 = Packet::divider_packet(2);
+    let divider_6 = Packet::divider_packet(6);
 
-    println!("The final sum was {result}.");
+    // println!("The packages were {packets:?}");
+
+    let (less_than_2, greater_than_2): (Vec<_>, Vec<_>) =
+        packets.into_iter().partition(|p| *p < divider_2);
+    let less_than_6 = greater_than_2
+        .into_iter()
+        .filter(|p| *p < divider_6)
+        .count();
+
+    let divider_2_pos = less_than_2.len() + 1;
+    let divider_6_pos = divider_2_pos + less_than_6 + 1;
+
+    println!(
+        "Pos of 2 was {divider_2_pos}, pos of 6 was {divider_6_pos} and product was {}",
+        divider_2_pos * divider_6_pos
+    );
 
     Ok(())
 }
