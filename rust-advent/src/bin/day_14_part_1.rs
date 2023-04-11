@@ -3,19 +3,11 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::char;
-use nom::character::complete::newline;
-use nom::character::complete::u8;
-use nom::combinator::map;
-use nom::multi::separated_list0;
-use nom::sequence::separated_pair;
-use nom::{sequence::delimited, IResult};
-use std::cmp::Ordering;
-use std::collections::HashSet;
-use std::fmt::Display;
-use std::fs;
+use nom::{
+    bytes::complete::tag, character::complete::char, combinator::map, multi::separated_list0,
+    sequence::separated_pair, IResult,
+};
+use std::{collections::HashSet, fmt::Display, fs, ops::RangeInclusive};
 
 use anyhow::{Context, Result};
 
