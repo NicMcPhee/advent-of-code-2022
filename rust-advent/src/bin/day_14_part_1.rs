@@ -66,32 +66,27 @@ impl Cave {
     }
 
     fn add_segment(&mut self, p: &Point, q: &Point) {
-        if p.x == q.x {
-            let r = if p.y < q.y { p.y..=q.y } else { q.y..=p.y };
-            for y in r {
-                self.insert(Point { x: p.x, y });
+        const fn range(l1: i32, l2: i32) -> RangeInclusive<i32> {
+            if l1 <= l2 {
+                l1..=l2
+            } else {
+                l2..=l1
             }
-        } else {
-            let r = if p.x < q.x { p.x..=q.x } else { q.x..=p.x };
-            for x in r {
-                self.insert(Point { x, y: p.y });
+        }
+
+        let y_range = range(p.y, q.y);
+        for x in range(p.x, q.x) {
+            for y in y_range.clone() {
+                self.insert(Point { x, y });
             }
         }
     }
 
     fn insert(&mut self, p: Point) {
-        if p.x < self.left_edge {
-            self.left_edge = p.x;
-        }
-        if p.x > self.right_edge {
-            self.right_edge = p.x;
-        }
-        if p.y < self.top_edge {
-            self.top_edge = p.y;
-        }
-        if p.y > self.bottom_edge {
-            self.bottom_edge = p.y;
-        }
+        self.left_edge = self.left_edge.min(p.x);
+        self.right_edge = self.right_edge.max(p.x);
+        self.top_edge = self.top_edge.min(p.y);
+        self.bottom_edge = self.bottom_edge.max(p.y);
         self.occupied.insert(p);
     }
 }
