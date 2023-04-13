@@ -38,6 +38,7 @@ impl Path {
 
 struct Cave {
     occupied: HashSet<Point>,
+    num_sands: i32,
     left_edge: i32,
     right_edge: i32,
     top_edge: i32,    // Smallest y value
@@ -48,6 +49,7 @@ impl Default for Cave {
     fn default() -> Self {
         Self {
             occupied: HashSet::default(),
+            num_sands: 0,
             // We know the point (500, 0) is where the sand comes from, so we'll use that as
             // the initial "edge".
             left_edge: 500,
@@ -89,6 +91,31 @@ impl Cave {
         self.bottom_edge = self.bottom_edge.max(p.y);
         self.occupied.insert(p);
     }
+
+    fn add_sand(&mut self) -> bool {
+        let mut x = 500;
+        let mut y = 0;
+        while let Some(Point { x: nx, y: ny }) = self.next_empty(x, y) {
+            x = nx;
+            y = ny;
+            if y > self.bottom_edge {
+                return false;
+            }
+        }
+        self.insert(Point { x, y });
+        self.num_sands += 1;
+        true
+    }
+
+    fn next_empty(&self, x: i32, y: i32) -> Option<Point> {
+        [0, -1, 1]
+            .into_iter()
+            .map(|offset| Point {
+                x: x + offset,
+                y: y + 1,
+            })
+            .find(|p| !self.occupied.contains(p))
+    }
 }
 
 impl Display for Cave {
@@ -106,8 +133,6 @@ impl Display for Cave {
         Ok(())
     }
 }
-
-static INPUT_FILE: &str = "../inputs/day_14_test.input";
 
 fn point(s: &str) -> IResult<&str, Point> {
     map(
@@ -129,6 +154,8 @@ fn parse_path(s: &str) -> anyhow::Result<Path> {
     Ok(p)
 }
 
+static INPUT_FILE: &str = "../inputs/day_14.input";
+
 fn main() -> anyhow::Result<()> {
     let paths: Vec<Path> = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
@@ -136,7 +163,7 @@ fn main() -> anyhow::Result<()> {
         .map(parse_path)
         .collect::<Result<_>>()?;
 
-    println!("Our paths are {paths:?}");
+    // println!("Our paths are {paths:?}");
 
     let mut cave = Cave::default();
 
@@ -144,7 +171,13 @@ fn main() -> anyhow::Result<()> {
         cave.add_path(&path);
     }
 
-    println!("Our starting cave is\n{cave}");
+    // println!("Our starting cave is\n{cave}");
+
+    while cave.add_sand() {
+        // Do nothing
+    }
+    println!("Our ending cave is\n{cave}");
+    println!("We added {} units of sand to the cave.", cave.num_sands);
 
     Ok(())
 }
