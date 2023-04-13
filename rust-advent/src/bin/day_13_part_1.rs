@@ -44,6 +44,7 @@ impl PartialOrd for Packet {
 }
 
 impl PacketPair {
+    #[allow(clippy::missing_const_for_fn)]
     fn new((left, right): (Packet, Packet)) -> Self {
         Self { left, right }
     }
@@ -110,7 +111,8 @@ fn main() -> Result<()> {
     let contents = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let (_, packet_pairs) = packet_pair_list(&contents).map_err(|e| e.to_owned())?;
+    let (_, packet_pairs) =
+        packet_pair_list(&contents).map_err(nom::Err::<nom::error::Error<&str>>::to_owned)?;
 
     let result = compute_sum(&packet_pairs);
 
