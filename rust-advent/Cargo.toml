@@ -10,6 +10,7 @@ anyhow = "1.0.68"
 itertools = "0.10.5"
 nom = "7.1.3"
 rayon = "1.6.1"
+regex = "1.7.3"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 
