@@ -104,7 +104,7 @@ impl Cave {
         }
         self.insert(Point { x, y });
         self.num_sands += 1;
-        y!=0
+        y != 0
     }
 
     fn next_empty(&self, x: i32, y: i32) -> Option<Point> {
