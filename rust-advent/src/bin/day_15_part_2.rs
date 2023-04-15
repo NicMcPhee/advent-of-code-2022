@@ -40,20 +40,28 @@ impl SensorBeacon {
     // TODO: Add a comment that explains the math here. Probably want to
     //   change some of the variables at the same time so the whole thing
     //   makes a little more sense.
-    #[allow(clippy::cast_possible_wrap)]
-    fn row_range(&self, row: i32) -> RangeInclusive<i32> {
+    fn row_range(&self, row: i32) -> anyhow::Result<RangeInclusive<i32>> {
         let sensor_row_dist = self.sensor.0.y.abs_diff(row);
         if sensor_row_dist > self.manhattan_distance {
             // If the sensor_row_dist is larger than the Manhattan distance
             // then the row is entirely outside the coverage area for the
             // sensor, and we want to return an empty range.
             #[allow(clippy::reversed_empty_ranges)]
-            return 1..=0;
+            return Ok(1..=0);
         }
-        let ub: i32 = self.manhattan_distance as i32 - sensor_row_dist as i32;
+        let ub: i32 = self
+            .manhattan_distance
+            .checked_sub(sensor_row_dist)
+            .with_context(|| {
+                format!(
+                    "Subtracting {sensor_row_dist} from {} failed",
+                    self.manhattan_distance
+                )
+            })?
+            .try_into()?;
         let lhs = self.sensor.0.x - ub;
         let rhs = self.sensor.0.x + ub;
-        lhs.min(rhs)..=lhs.max(rhs)
+        Ok(lhs.min(rhs)..=lhs.max(rhs))
     }
 
     const fn md(sensor: Point, beacon: Point) -> u32 {
@@ -83,13 +91,13 @@ impl Cave {
         Ok(())
     }
 
-    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-    fn coverage(&self, row: i32) -> anyhow::Result<u32> {
+    fn coverage(&self, row: i32) -> anyhow::Result<usize> {
         // Replace the `for` loop with a fold or reduce?
         let mut union_range = IntRangeUnionFind::new();
-        for r in self.row_ranges(row) {
+        for r in self.row_ranges(row)? {
             if !r.is_empty() {
-                union_range.insert_range(&r)
+                union_range
+                    .insert_range(&r)
                     .with_context(|| format!("Adding {r:?} to {union_range:?} failed"))?;
             }
         }
@@ -100,10 +108,10 @@ impl Cave {
         // a range. (Maybe this is only partly true, but we'll hope that
         // no one is putting weird ranges into the system.)
         #[allow(clippy::cast_sign_loss)]
-        let initial_count: u32 = union_range
+        let initial_count: usize = union_range
             .to_collection::<Vec<_>>()
             .iter()
-            .map(|r| (r.end() - r.start() + 1) as u32)
+            .map(|r| (r.end() - r.start() + 1) as usize)
             .sum();
 
         println!("The initial count is {initial_count}.");
@@ -115,14 +123,18 @@ impl Cave {
             .unique()
             .map(|pt| pt.y)
             .filter(|y| *y == row && union_range.has_element(y))
-            .count() as u32;
+            .count();
 
         println!("The number of beacons in the range was {num_beacons_in_row}.");
 
-        Ok(initial_count - num_beacons_in_row)
+        initial_count
+            .checked_sub(num_beacons_in_row)
+            .with_context(|| {
+                format!("Subtracting {num_beacons_in_row} from {initial_count} failed")
+            })
     }
 
-    fn row_ranges(&self, row: i32) -> Vec<RangeInclusive<i32>> {
+    fn row_ranges(&self, row: i32) -> anyhow::Result<Vec<RangeInclusive<i32>>> {
         self.sensor_beacons
             .iter()
             .map(|sensor_beacon| sensor_beacon.row_range(row))
