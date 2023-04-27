@@ -5,8 +5,7 @@
 
 use std::{fs, ops::RangeInclusive};
 
-use anyhow::Context;
-use itertools::Itertools;
+use anyhow::{bail, Context};
 use range_union_find::IntRangeUnionFind;
 use regex::{Captures, Regex};
 
@@ -91,7 +90,7 @@ impl Cave {
         Ok(())
     }
 
-    fn coverage(&self, row: i32) -> anyhow::Result<usize> {
+    fn union_range(&self, row: i32) -> anyhow::Result<IntRangeUnionFind<i32>> {
         // Replace the `for` loop with a fold or reduce?
         let mut union_range = IntRangeUnionFind::new();
         for r in self.row_ranges(row)? {
@@ -101,37 +100,31 @@ impl Cave {
                     .with_context(|| format!("Adding {r:?} to {union_range:?} failed"))?;
             }
         }
-        println!("{union_range:?}");
+        // println!("{union_range:?}");
+        Ok(union_range)
+    }
 
-        // The subtraction just before `.sum()` can never return a negative
-        // value because the `end` of a range can't be less than the `start`
-        // a range. (Maybe this is only partly true, but we'll hope that
-        // no one is putting weird ranges into the system.)
-        #[allow(clippy::cast_sign_loss)]
-        let initial_count: usize = union_range
-            .to_collection::<Vec<_>>()
-            .iter()
-            .map(|r| (r.end() - r.start() + 1) as usize)
-            .sum();
+    // Find the x coordinate (column) of a gap in coverage in this
+    // row, returning that in the `Option` if it exists, or returning
+    // `None` if there is no gap in this row.
+    fn find_gap(&self, row: i32) -> anyhow::Result<Option<i32>> {
+        let coverage = self.union_range(row)?;
+        match coverage.has_range(&(0..=4_000_000))? {
+            // 4_000_000
+            range_union_find::OverlapType::Disjoint => bail!("Had disjoint ranges at row {row}"),
+            range_union_find::OverlapType::Partial(_) => Ok(Some(Self::extract_gap(&coverage)?)),
+            range_union_find::OverlapType::Contained => Ok(None),
+        }
+    }
 
-        println!("The initial count is {initial_count}.");
-
-        let num_beacons_in_row = self
-            .sensor_beacons
-            .iter()
-            .map(|sb| sb.beacon.0)
-            .unique()
-            .map(|pt| pt.y)
-            .filter(|y| *y == row && union_range.has_element(y))
-            .count();
-
-        println!("The number of beacons in the range was {num_beacons_in_row}.");
-
-        initial_count
-            .checked_sub(num_beacons_in_row)
-            .with_context(|| {
-                format!("Subtracting {num_beacons_in_row} from {initial_count} failed")
-            })
+    fn extract_gap(coverage: &IntRangeUnionFind<i32>) -> anyhow::Result<i32> {
+        let parts: Vec<_> = coverage.to_collection();
+        for r in parts {
+            if (0..=4_000_000).contains(&(r.end() + 1)) {
+                return Ok(r.end() + 1);
+            }
+        }
+        bail!("We didn't find a gap in {coverage:?}");
     }
 
     fn row_ranges(&self, row: i32) -> anyhow::Result<Vec<RangeInclusive<i32>>> {
@@ -142,12 +135,11 @@ impl Cave {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_15_test.input";
+static INPUT_FILE: &str = "../inputs/day_15.input";
 
 fn main() -> anyhow::Result<()> {
     let mut cave = Cave::default();
 
-    // Sensor at x=2, y=18: closest beacon is at x=-2, y=15
     let re =
         Regex::new(r"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")?;
 
@@ -158,13 +150,15 @@ fn main() -> anyhow::Result<()> {
         cave.add_entry(&cap)?;
     }
 
-    // println!("Sensors: {:?}", cave.sensor_beacons);
-
     println!("The row ranges are {:?}", cave.row_ranges(10));
 
-    for row in 0..=20 {
-        let num_covered = cave.coverage(row)?; // 2_000_000)?;
-        println!("The number of covered locations = {num_covered}");
+    for row in 0..=4_000_000 {
+        if let Some(gap) = cave.find_gap(row)? {
+            println!("The beacon is at ({gap}, {row})");
+            let tuning_frequency = i64::from(gap) * 4_000_000 + i64::from(row);
+            println!("The tuning frequency is {tuning_frequency}");
+            break;
+        }
     }
 
     Ok(())
