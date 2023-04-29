@@ -3,7 +3,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::fs;
+use std::{collections::HashMap, fs, ops::Not};
 
 use anyhow::Context;
 use nom::{
@@ -32,7 +32,10 @@ fn valve(line: &str) -> IResult<&str, Valve> {
             tag("; tunnel leads to valve "),
             tag("; tunnels lead to valves "),
         )),
-        separated_list1(tag(", "), map(take(2usize), std::string::ToString::to_string)),
+        separated_list1(
+            tag(", "),
+            map(take(2usize), std::string::ToString::to_string),
+        ),
     ))(s)?;
 
     Ok((
@@ -49,7 +52,11 @@ fn extract_valve(line: &str) -> anyhow::Result<Valve> {
     // This version might actually be easier to understand, although Clippy
     // reasonably prefers not adding a closure unnecessarily.
     //     Ok(valve(line).map_err(|e| e.to_owned())?.1)
-    Ok(valve(line).map_err(nom::Err::<nom::error::Error<&str>>::to_owned)?.1)
+    Ok(valve(line)
+        .map_err(nom::Err::<nom::error::Error<&str>>::to_owned)?
+        .1)
+}
+
 struct BitSet {
     bits: u64,
 }
@@ -106,6 +113,71 @@ mod bit_set_tests {
         }
     }
 }
+
+#[derive(Debug)]
+struct NumberedValve {
+    number: u8,
+    valve: Valve,
+}
+
+struct Cave {
+    // numbered_valves: Vec<NumberedValve>,
+    names_to_valves: HashMap<String, NumberedValve>,
+}
+
+impl Cave {
+    fn new(valves: Vec<Valve>) -> Self {
+        let mut names_to_valves = HashMap::new();
+        assert!(
+            valves.len() < 64,
+            "Too many valves ({}) to fit in a u8",
+            valves.len()
+        );
+        for (number, v) in valves.into_iter().enumerate() {
+            let valve_name = v.name.clone();
+            let numbered_valve = NumberedValve {
+                #[allow(clippy::cast_possible_truncation)]
+                number: number as u8,
+                valve: v,
+            };
+            names_to_valves.insert(valve_name, numbered_valve);
+        }
+        Self { names_to_valves }
+    }
+
+    /*
+     * One optimization that we may want to address is the case that we've evaluated (or started to evaluate)
+     * a state like ("AA", {}, 30) and later find ourselves being asked to evaluate a state like
+     * ("AA", {}, 28), i.e., the same starting node and set of closed valves, but with less time. It's
+     * definitely true that we can skip trying to evaluate the latter, because we just looped back
+     * around to where we'd come from without actually improving anything (i.e., without opening
+     * any new valves). The trick is that I'm not sure how we'd actually _track_ that unless we
+     * pass a vector of all the states we've passed through. It's not entirely clear how important
+     * an optimization this would be, so I'm not quite sure what we do about it.
+     */
+    fn max_release(
+        &self,
+        current_valve_name: &String,
+        open_valves: u64,
+        time_remaining: u8,
+    ) -> anyhow::Result<u32> {
+        println!("{current_valve_name} : {open_valves:b} : {time_remaining}");
+        let valve = self.names_to_valves.get(current_valve_name).with_context(|| {
+            format!(
+                "Didn't find {current_valve_name} in the `names_to_valves` map {:?}",
+                self.names_to_valves
+            )
+        })?;
+        // let recursive_values = Vec::new();
+        // if valve.flow_rate > 0 && open_valves.contains(&valve.name).not() {
+        //     recursive_values.push(self.max_release(
+        //         current_valve_name,
+        //         open_valves.insert(current_valve_name),
+        //         time_remaining - 1,
+        //     ));
+        // }
+        todo!()
+    }
 }
 
 static INPUT_FILE: &str = "../inputs/day_16_test.input";
@@ -118,6 +190,12 @@ fn main() -> anyhow::Result<()> {
         .collect::<anyhow::Result<Vec<Valve>>>()?;
 
     println!("{valves:?}");
+
+    let cave = Cave::new(valves);
+
+    let result = cave.max_release(&"AA".to_string(), 0, 30)?;
+
+    println!("The maximum release is {result}");
 
     Ok(())
 }
