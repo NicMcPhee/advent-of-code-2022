@@ -3,7 +3,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashMap, fs, ops::Not};
+use std::{collections::HashMap, fmt::Display, fs, ops::Not};
 
 use anyhow::Context;
 use nom::{
@@ -57,13 +57,14 @@ fn extract_valve(line: &str) -> anyhow::Result<Valve> {
         .1)
 }
 
+#[derive(Default, Debug, PartialEq, Eq, Hash, Clone)]
 struct BitSet {
     bits: u64,
 }
 
 impl BitSet {
     #[must_use]
-    fn add(&self, position: u16) -> Self {
+    fn insert(&self, position: u8) -> Self {
         assert!(position < 64);
         let bit = 1u64 << position;
         Self {
@@ -72,7 +73,7 @@ impl BitSet {
     }
 
     #[must_use]
-    fn contains(&self, position: u16) -> bool {
+    fn contains(&self, position: u8) -> bool {
         assert!(position < 64);
         let bit = 1u64 << position;
         self.bits & bit > 0
@@ -95,7 +96,7 @@ mod bit_set_tests {
     fn full_bit_set() {
         let mut bits = BitSet { bits: 0 };
         for i in 0..64 {
-            bits = bits.add(i);
+            bits = bits.insert(i);
         }
         for i in 0..64 {
             assert!(bits.contains(i));
@@ -106,7 +107,7 @@ mod bit_set_tests {
     fn only_even_bits() {
         let mut bits = BitSet { bits: 0 };
         for i in 0..32 {
-            bits = bits.add(i * 2);
+            bits = bits.insert(i * 2);
         }
         for i in 0..64 {
             assert_eq!(bits.contains(i), i % 2 == 0);
@@ -120,8 +121,34 @@ struct NumberedValve {
     valve: Valve,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct State {
+    current_valve_name: String,
+    open_valves: BitSet,
+    time_remaining: u8,
+}
+
+impl State {
+    const fn new(current_valve_name: String, open_valves: BitSet, time_remaining: u8) -> Self {
+        Self {
+            current_valve_name,
+            open_valves,
+            time_remaining,
+        }
+    }
+}
+
+impl Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} : {:b} : {}",
+            self.current_valve_name, self.open_valves.bits, self.time_remaining
+        )
+    }
+}
+
 struct Cave {
-    // numbered_valves: Vec<NumberedValve>,
     names_to_valves: HashMap<String, NumberedValve>,
 }
 
@@ -145,6 +172,15 @@ impl Cave {
         Self { names_to_valves }
     }
 
+    fn numbered_valve(&self, name: &str) -> anyhow::Result<&NumberedValve> {
+        self.names_to_valves.get(name).with_context(|| {
+            format!(
+                "Didn't find {} in the `names_to_valves` map {:?}",
+                name, self.names_to_valves
+            )
+        })
+    }
+
     /*
      * One optimization that we may want to address is the case that we've evaluated (or started to evaluate)
      * a state like ("AA", {}, 30) and later find ourselves being asked to evaluate a state like
@@ -157,30 +193,49 @@ impl Cave {
      */
     fn max_release(
         &self,
-        current_valve_name: &String,
-        open_valves: u64,
-        time_remaining: u8,
+        state: State,
+        known_results: &mut HashMap<State, u32>,
     ) -> anyhow::Result<u32> {
-        println!("{current_valve_name} : {open_valves:b} : {time_remaining}");
-        let valve = self.names_to_valves.get(current_valve_name).with_context(|| {
-            format!(
-                "Didn't find {current_valve_name} in the `names_to_valves` map {:?}",
-                self.names_to_valves
-            )
-        })?;
-        // let recursive_values = Vec::new();
-        // if valve.flow_rate > 0 && open_valves.contains(&valve.name).not() {
-        //     recursive_values.push(self.max_release(
-        //         current_valve_name,
-        //         open_valves.insert(current_valve_name),
-        //         time_remaining - 1,
-        //     ));
-        // }
-        todo!()
+        // println!("Current state: {state}");
+        let result = known_results.get(&state);
+        if state.time_remaining == 0 {
+            return Ok(0);
+        }
+        if let Some(r) = result {
+            return Ok(*r);
+        }
+        let valve = self.numbered_valve(&state.current_valve_name)?;
+        let time_remaining = state.time_remaining - 1;
+        let mut recursive_values = Vec::with_capacity(1 + valve.valve.adjacent_valve_names.len());
+        if valve.valve.flow_rate > 0 && state.open_valves.contains(valve.number).not() {
+            let new_state = State::new(
+                state.current_valve_name.clone(),
+                state.open_valves.insert(valve.number),
+                time_remaining,
+            );
+            recursive_values.push(
+                valve.valve.flow_rate * u32::from(time_remaining)
+                    + self.max_release(new_state, known_results)?,
+            );
+        }
+        for valve_name in &valve.valve.adjacent_valve_names {
+            let new_state = State::new(
+                valve_name.clone(),
+                state.open_valves.clone(),
+                time_remaining,
+            );
+            recursive_values.push(self.max_release(new_state, known_results)?);
+        }
+        let result = recursive_values
+            .into_iter()
+            .max()
+            .with_context(|| format!("There were no recursive results for state {state:?}"))?;
+        known_results.insert(state, result);
+        Ok(result)
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_16_test.input";
+static INPUT_FILE: &str = "../inputs/day_16.input";
 
 fn main() -> anyhow::Result<()> {
     let valves = fs::read_to_string(INPUT_FILE)
@@ -193,7 +248,10 @@ fn main() -> anyhow::Result<()> {
 
     let cave = Cave::new(valves);
 
-    let result = cave.max_release(&"AA".to_string(), 0, 30)?;
+    let result = cave.max_release(
+        State::new("AA".to_string(), BitSet::default(), 30),
+        &mut HashMap::new(),
+    )?;
 
     println!("The maximum release is {result}");
 
