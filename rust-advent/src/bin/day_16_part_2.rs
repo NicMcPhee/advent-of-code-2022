@@ -6,6 +6,7 @@
 use std::{collections::HashMap, fmt::Display, fs, ops::Not};
 
 use anyhow::Context;
+use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take},
@@ -78,6 +79,10 @@ impl BitSet {
         let bit = 1u64 << position;
         self.bits & bit > 0
     }
+
+    fn len(&self) -> usize {
+        (0..64).filter(|i| self.contains(*i)).count()
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +126,13 @@ struct NumberedValve {
     valve: Valve,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone)]
+enum Move {
+    Open(String),
+    Move(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
     my_valve_name: String,
     elephant_valve_name: String,
@@ -193,34 +204,107 @@ impl Cave {
             )
         })
     }
-
-    fn process_name(
-        &self,
-        name: &str,
-        other_name: &str,
-        time_remaining: u8,
-        open_valves: &mut BitSet,
-        known_results: &mut HashMap<State, u32>,
-    ) -> anyhow::Result<Vec<u32>> {
-        let valve = self.numbered_valve(name)?;
-        let mut recursive_values = Vec::with_capacity(1 + valve.valve.adjacent_valve_names.len());
+    fn moves(&self, valve_name: &str, open_valves: &BitSet) -> anyhow::Result<Vec<Move>> {
+        let valve = self.numbered_valve(valve_name)?;
+        let adjacent_valves = &valve.valve.adjacent_valve_names;
+        let mut moves = Vec::with_capacity(1 + adjacent_valves.len());
         if valve.valve.flow_rate > 0 && open_valves.contains(valve.number).not() {
-            let new_state = State::new(
-                name,
-                other_name,
-                open_valves.insert(valve.number),
-                time_remaining,
-            );
-            recursive_values.push(
-                valve.valve.flow_rate * u32::from(time_remaining)
-                    + self.max_release(new_state, known_results)?,
-            );
+            moves.push(Move::Open(valve_name.to_string()));
         }
-        for valve_name in &valve.valve.adjacent_valve_names {
-            let new_state = State::new(valve_name, other_name, open_valves.clone(), time_remaining);
-            recursive_values.push(self.max_release(new_state, known_results)?);
+        moves.extend(adjacent_valves.iter().map(|v| Move::Move(v.clone())));
+        Ok(moves)
+    }
+
+    fn apply_moves(
+        &self,
+        state: &State,
+        my_move: &Move,
+        elephant_move: &Move,
+    ) -> anyhow::Result<(State, u32)> {
+        let time_remaining = state.time_remaining - 1;
+        match (my_move, elephant_move) {
+            (Move::Open(my_valve), Move::Open(elephant_valve)) if my_valve == elephant_valve => {
+                let numbered_valve = self.numbered_valve(my_valve)?;
+                Ok((
+                    State::new(
+                        &state.my_valve_name,
+                        &state.elephant_valve_name,
+                        state.open_valves.insert(numbered_valve.number),
+                        time_remaining,
+                    ),
+                    numbered_valve.valve.flow_rate * u32::from(time_remaining),
+                ))
+            }
+            (Move::Open(my_valve), Move::Open(elephant_valve)) => {
+                let my_numbered_valve = self.numbered_valve(my_valve)?;
+                let elephant_numbered_valve = self.numbered_valve(elephant_valve)?;
+                Ok((
+                    State::new(
+                        &state.my_valve_name,
+                        &state.elephant_valve_name,
+                        state
+                            .open_valves
+                            .insert(my_numbered_valve.number)
+                            .insert(elephant_numbered_valve.number),
+                        time_remaining,
+                    ),
+                    my_numbered_valve.valve.flow_rate * u32::from(time_remaining)
+                        + elephant_numbered_valve.valve.flow_rate * u32::from(time_remaining),
+                ))
+            }
+            (Move::Open(my_open_valve), Move::Move(elephant_valve)) => {
+                let my_numbered_open_valve = self.numbered_valve(my_open_valve)?;
+                let mut my_valve = state.my_valve_name.clone();
+                let mut elephant_valve = elephant_valve.clone();
+                if my_valve > elephant_valve {
+                    (my_valve, elephant_valve) = (elephant_valve, my_valve);
+                }
+                Ok((
+                    State::new(
+                        &my_valve,
+                        &elephant_valve,
+                        state.open_valves.insert(my_numbered_open_valve.number),
+                        time_remaining,
+                    ),
+                    my_numbered_open_valve.valve.flow_rate * u32::from(time_remaining),
+                ))
+            }
+            (Move::Move(my_valve), Move::Open(elephant_open_valve)) => {
+                let elephant_numbered_open_valve = self.numbered_valve(elephant_open_valve)?;
+                let mut my_valve = my_valve.clone();
+                let mut elephant_valve = state.elephant_valve_name.clone();
+                if my_valve > elephant_valve {
+                    (my_valve, elephant_valve) = (elephant_valve, my_valve);
+                }
+                Ok((
+                    State::new(
+                        &my_valve,
+                        &elephant_valve,
+                        state
+                            .open_valves
+                            .insert(elephant_numbered_open_valve.number),
+                        time_remaining,
+                    ),
+                    elephant_numbered_open_valve.valve.flow_rate * u32::from(time_remaining),
+                ))
+            }
+            (Move::Move(my_valve), Move::Move(elephant_valve)) => {
+                let mut my_valve = my_valve.clone();
+                let mut elephant_valve = elephant_valve.clone();
+                if my_valve > elephant_valve {
+                    (my_valve, elephant_valve) = (elephant_valve, my_valve);
+                }
+                Ok((
+                    State::new(
+                        &my_valve,
+                        &elephant_valve,
+                        state.open_valves.clone(),
+                        time_remaining,
+                    ),
+                    0,
+                ))
+            }
         }
-        Ok(recursive_values)
     }
 
     /*
@@ -238,32 +322,42 @@ impl Cave {
         state: State,
         known_results: &mut HashMap<State, u32>,
     ) -> anyhow::Result<u32> {
-        println!("Current state: {state}");
         if state.time_remaining == 0 {
+            return Ok(0);
+        }
+        if state.open_valves.len() == 15 {
+            println!(
+                "Current state: {state}; known results size = {}",
+                known_results.len()
+            );
             return Ok(0);
         }
         let result = known_results.get(&state);
         if let Some(r) = result {
             return Ok(*r);
         }
-        let time_remaining = state.time_remaining - 1;
-        let mut open_valves = state.open_valves.clone();
-        let mut my_values = self.process_name(
-            &state.my_valve_name,
-            &state.elephant_valve_name,
-            time_remaining,
-            &mut open_valves,
-            known_results,
-        )?;
-        let elephant_values = self.process_name(
-            &state.elephant_valve_name,
-            &state.my_valve_name,
-            time_remaining,
-            &mut open_valves,
-            known_results,
-        )?;
-        my_values.extend(elephant_values.into_iter());
-        let result = my_values
+        if known_results.len() % 1_000_000 == 0 {
+            println!(
+                "Current state: {state}; known results size = {}",
+                known_results.len()
+            );
+        }
+        let open_valves = state.open_valves.clone();
+        let my_moves = self.moves(&state.my_valve_name, &open_valves)?;
+        let elephant_moves = self.moves(&state.elephant_valve_name, &open_valves)?;
+        // TODO: Use `map_ok()` from the `itertools` crate to avoid all this `collect()`-then-back-to-`iter()`
+        //   business.
+        let state_flow_pairs = my_moves
+            .iter()
+            .cartesian_product(elephant_moves)
+            .map(|(my_move, elephant_move)| self.apply_moves(&state, my_move, &elephant_move))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let new_values = state_flow_pairs
+            .into_iter()
+            .unique_by(|(state, _)| state.clone())
+            .map(|(state, flow)| self.max_release(state, known_results).map(|f| f + flow))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let result = new_values
             .into_iter()
             .max()
             .with_context(|| format!("There were no recursive results for state {state:?}"))?;
@@ -272,7 +366,7 @@ impl Cave {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_16_test.input";
+static INPUT_FILE: &str = "../inputs/day_16.input";
 
 fn main() -> anyhow::Result<()> {
     let valves = fs::read_to_string(INPUT_FILE)
@@ -281,7 +375,7 @@ fn main() -> anyhow::Result<()> {
         .map(extract_valve)
         .collect::<anyhow::Result<Vec<Valve>>>()?;
 
-    println!("{valves:?}");
+    // println!("{valves:?}");
 
     let cave = Cave::new(valves);
 
