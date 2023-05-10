@@ -23,16 +23,14 @@ struct Beacon(Point);
 #[derive(Debug)]
 struct SensorBeacon {
     sensor: Sensor,
-    beacon: Beacon,
     manhattan_distance: u32,
 }
 
 impl SensorBeacon {
-    const fn new(sensor: Sensor, beacon: Beacon) -> Self {
+    const fn new(sensor: Sensor, beacon: &Beacon) -> Self {
         Self {
             manhattan_distance: Self::md(sensor.0, beacon.0),
             sensor,
-            beacon,
         }
     }
 
@@ -83,7 +81,7 @@ impl Cave {
             x: capture[3].parse()?,
             y: capture[4].parse()?,
         });
-        let sensor_beacon = SensorBeacon::new(sensor, beacon);
+        let sensor_beacon = SensorBeacon::new(sensor, &beacon);
 
         self.sensor_beacons.push(sensor_beacon);
 
