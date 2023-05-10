@@ -348,9 +348,9 @@ impl Cave {
         // TODO: Use `map_ok()` from the `itertools` crate to avoid all this `collect()`-then-back-to-`iter()`
         //   business.
         let state_flow_pairs = my_moves
-            .iter()
+            .into_iter()
             .cartesian_product(elephant_moves)
-            .map(|(my_move, elephant_move)| self.apply_moves(&state, my_move, &elephant_move))
+            .map(|(my_move, elephant_move)| self.apply_moves(&state, &my_move, &elephant_move))
             .collect::<anyhow::Result<Vec<_>>>()?;
         let new_values = state_flow_pairs
             .into_iter()
