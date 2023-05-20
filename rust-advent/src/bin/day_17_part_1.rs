@@ -194,7 +194,19 @@ struct Chamber {
 // TODO: Implement this to help with debugging.
 impl Display for Chamber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        for y in (0..=self.highest_rock_point).rev() {
+            for x in 0..7 {
+                let position = Position::new(x, y);
+                if self.occupied.contains(&position) {
+                    write!(f, "#")?;
+                } else {
+                    write!(f, ".")?;
+                }
+            }
+            write!(f, "\n")?;
+        }
+        write!(f, "The highest rock is at {}", self.highest_rock_point)?;
+        Ok(())
     }
 }
 
