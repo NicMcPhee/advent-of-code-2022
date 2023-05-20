@@ -136,20 +136,22 @@ struct PositionedRock {
 impl PositionedRock {
     fn shift(&mut self, direction: &JetDirection, occupied: &HashSet<Position>) {
         match direction {
-            JetDirection::Left if self.position.x > 0 => self.move_left(occupied),
-            JetDirection::Right if self.position.x < 6 => self.move_right(occupied),
+            JetDirection::Left => self.move_left(occupied),
+            JetDirection::Right => self.move_right(occupied),
             _ => (),
         }
     }
 
     fn move_left(&mut self, occupied: &HashSet<Position>) {
         if self.not_intersects(-1, 0, occupied) {
+            // println!("Moving left");
             self.position.x -= 1;
         }
     }
 
     fn move_right(&mut self, occupied: &HashSet<Position>) {
         if self.not_intersects(1, 0, occupied) {
+            // println!("Moving right");
             self.position.x += 1;
         }
     }
