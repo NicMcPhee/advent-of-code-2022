@@ -48,7 +48,7 @@ impl Position {
         Some(Self { x, y })
     }
 
-    fn offset_by_position(&self, offset: &Position) -> Option<Self> {
+    fn offset_by_position(&self, offset: &Self) -> Option<Self> {
         let dx = i32::from(offset.x);
         let dy = i64::try_from(offset.y).ok()?;
         self.offset(dx, dy)
@@ -138,7 +138,6 @@ impl PositionedRock {
         match direction {
             JetDirection::Left => self.move_left(occupied),
             JetDirection::Right => self.move_right(occupied),
-            _ => (),
         }
     }
 
@@ -201,7 +200,7 @@ impl Display for Chamber {
                     write!(f, ".")?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         write!(f, "The highest rock is at {}", self.highest_rock_point)?;
         Ok(())
@@ -304,18 +303,18 @@ fn main() -> anyhow::Result<()> {
 
     let num_jet_directions = jet_directions.len();
     let num_jet_directions: u64 = u64::try_from(num_jet_directions)?;
-    let cycle_size = num_jet_directions * 5;
+    // let cycle_size = num_jet_directions * 5;
 
-    println!("There are {} jet directions", num_jet_directions);
+    println!("There are {num_jet_directions} jet directions");
 
     let mut chamber = Chamber::new(jet_directions);
 
-    chamber.drop_rocks(15);
-    println!("{chamber}");
-    chamber.drop_rocks(35);
-    println!("{chamber}");
-    chamber.drop_rocks(35);
-    println!("{chamber}");
+    // chamber.drop_rocks(15);
+    // println!("{chamber}");
+    // chamber.drop_rocks(35);
+    // println!("{chamber}");
+    // chamber.drop_rocks(35);
+    // println!("{chamber}");
 
     // chamber.drop_rocks(cycle_size);
 
@@ -325,11 +324,15 @@ fn main() -> anyhow::Result<()> {
 
     // chamber.print_top_and_bottom_lines();
 
-    let block_height = chamber.highest_rock_point;
-    println!("The block height is {block_height}");
+    // let block_height = chamber.highest_rock_point;
+    // println!("The block height is {block_height}");
 
-    let num_blocks = 1_000_000_000_000;
-    let result = block_height * (num_blocks / cycle_size);
+    // let num_rocks: u64 = 1_000_000_000_000;
+
+    chamber.drop_rocks(1_000_000);
+    // chamber.drop_rocks(num_rocks);
+    // let result = block_height * (num_blocks / cycle_size);
+    let result = chamber.highest_rock_point;
 
     println!("Result is {result}");
 

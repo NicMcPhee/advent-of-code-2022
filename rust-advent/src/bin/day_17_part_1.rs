@@ -48,7 +48,7 @@ impl Position {
         Some(Self { x, y })
     }
 
-    fn offset_by_position(&self, offset: &Position) -> Option<Self> {
+    fn offset_by_position(&self, offset: &Self) -> Option<Self> {
         let dx = i32::from(offset.x);
         let dy = i32::try_from(offset.y).ok()?;
         self.offset(dx, dy)
@@ -138,7 +138,6 @@ impl PositionedRock {
         match direction {
             JetDirection::Left => self.move_left(occupied),
             JetDirection::Right => self.move_right(occupied),
-            _ => (),
         }
     }
 
@@ -201,7 +200,7 @@ impl Display for Chamber {
                     write!(f, ".")?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         write!(f, "The highest rock is at {}", self.highest_rock_point)?;
         Ok(())
