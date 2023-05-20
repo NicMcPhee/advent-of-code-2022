@@ -160,19 +160,14 @@ impl PositionedRock {
         self.rock
             .into_iter()
             .any(|p| {
-                // These type conversion errors shouldn't happen if we have the logic
-                // correct.
                 #[allow(clippy::expect_used)]
-                occupied.contains(&Position {
-                    x: u8::try_from(i32::from(p.x + self.position.x) + dx)
-                        .expect("x coordinate didn't fit in u8"),
-                    y: u32::try_from(
-                        i32::try_from(p.y + self.position.y)
-                            .expect("y coordinate couldn't convert to i32")
-                            + dy,
-                    )
-                    .expect("y coordinate didn't fit in u32"),
-                })
+                let Some(rock_position) = p.offset_by_position(&self.position) else {
+                    return true;
+                };
+                let Some(offset_position) = rock_position.offset(dx, dy) else {
+                    return true;
+                };
+                occupied.contains(&offset_position)
             })
             .not()
     }
