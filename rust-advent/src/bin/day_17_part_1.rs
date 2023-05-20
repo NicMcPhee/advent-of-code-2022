@@ -178,8 +178,9 @@ impl PositionedRock {
     }
 
     fn drop(&mut self, occupied: &HashSet<Position>) -> bool {
-        if self.position.y > 0 && self.not_intersects(0, -1, occupied) {
+        if self.position.y > 1 && self.not_intersects(0, -1, occupied) {
             self.position.y -= 1;
+            // println!("Dropping");
             return true;
         }
         false
@@ -226,6 +227,7 @@ impl Chamber {
         for _ in 0..num_rocks {
             let mut positioned_rock = self.next_rock();
             self.drop_rock(&mut positioned_rock);
+            // println!("{self}\n\n");
         }
     }
 
@@ -264,13 +266,13 @@ impl Chamber {
             rock,
             position: Position {
                 x: 2,
-                y: self.highest_rock_point + 3,
+                y: self.highest_rock_point + 4,
             },
         }
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_17_test.input";
+static INPUT_FILE: &str = "../inputs/day_17.input";
 
 fn main() -> anyhow::Result<()> {
     let jet_directions = fs::read_to_string(INPUT_FILE)
