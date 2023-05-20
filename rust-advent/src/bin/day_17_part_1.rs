@@ -38,6 +38,21 @@ impl Position {
     const fn new(x: u8, y: u32) -> Self {
         Self { x, y }
     }
+
+    fn offset(&self, dx: i32, dy: i32) -> Option<Self> {
+        let x: u8 = u8::try_from(i32::from(self.x) + dx).ok()?;
+        if x >= 7 {
+            return None;
+        }
+        let y: u32 = u32::try_from(i32::try_from(self.y).ok()? + dy).ok()?;
+        Some(Self { x, y })
+    }
+
+    fn offset_by_position(&self, offset: &Position) -> Option<Self> {
+        let dx = i32::from(offset.x);
+        let dy = i32::try_from(offset.y).ok()?;
+        self.offset(dx, dy)
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, EnumIter)]
