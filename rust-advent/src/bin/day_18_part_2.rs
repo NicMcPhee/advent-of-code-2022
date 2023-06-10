@@ -12,7 +12,7 @@ use std::{
 
 use anyhow::Context;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 struct Cube {
     x: u8,
     y: u8,
@@ -53,7 +53,12 @@ impl Cube {
             self + Self { x: 0, y: 0, z: 1 },
             self - Self { x: 0, y: 0, z: 1 },
         ];
-        result.into_iter().flatten()
+        result
+            .into_iter()
+            .flatten()
+            // MizardX@Twitch pointed out that these "< 20" checks could be
+            // moved into the `Add`/`Sub` implementations.
+            .filter(|c| c.x < 20 && c.y < 20 && c.z < 20)
     }
 }
 
@@ -74,7 +79,7 @@ impl FromStr for Cube {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct LavaDroplet {
     cubes: HashSet<Cube>,
     hidden_faces: usize,
@@ -91,7 +96,7 @@ impl LavaDroplet {
     }
 
     fn surface_area(&self) -> usize {
-        self.num_cubes() * 6 - self.num_hidden_faces() - 6 * self.num_trapped_air_cubes()
+        self.num_cubes() * 6 - self.num_hidden_faces() //  - 6 * self.num_trapped_air_cubes()
     }
 
     fn add_cube(mut self, cube: Cube) -> Self {
@@ -104,58 +109,60 @@ impl LavaDroplet {
         self
     }
 
-    fn num_trapped_air_cubes(&self) -> usize {
-        todo!()
-    }
+    // fn num_trapped_air_cubes(&self) -> usize {
+    //     todo!()
+    // }
 
-    fn find_outside(&self) {
+    fn find_outside(&mut self) {
+        // `open` is a collection of all the cubes in the 20x20x20 volume
+        // that are reachable "by water" from outside that volume. It starts
+        // with all the cubes along the faces that are not rock (i.e., can be
+        // filled with water).
         let mut open: Vec<Cube> = Vec::new();
-        for x in 0u8..20 {
-            for y in 0u8..20 {
-                let cube = Cube { x, y, z: 0 };
-                if self.is_outside(cube) {
-                    open.push(cube);
-                }
-                let cube = Cube { x, y, z: 19 };
-                if self.is_outside(cube) {
-                    open.push(cube);
-                }
-            }
-        }
-        for x in 0u8..20 {
-            for z in 0u8..20 {
-                let cube = Cube { x, y: 0, z };
-                if self.is_outside(cube) {
-                    open.push(cube);
-                }
-                let cube = Cube { x, y: 19, z };
-                if self.is_outside(cube) {
-                    open.push(cube);
+        for u in 0u8..20 {
+            for v in 0u8..20 {
+                for s in [0u8, 19] {
+                    for cube in [
+                        Cube { x: u, y: v, z: s },
+                        Cube { x: u, y: s, z: v },
+                        Cube { x: s, y: u, z: v },
+                    ] {
+                        if self.is_not_rock(cube) {
+                            open.push(cube);
+                        }
+                    }
                 }
             }
         }
-        for y in 0u8..20 {
-            for z in 0u8..20 {
-                let cube = Cube { x: 0, y, z };
-                if self.is_outside(cube) {
-                    open.push(cube);
-                }
-                let cube = Cube { x: 19, y, z };
-                if self.is_outside(cube) {
-                    open.push(cube);
+
+        while let Some(cube) = open.pop() {
+            if self.outside_cubes.insert(cube) {
+                for n in cube.neighbors() {
+                    if self.is_not_rock(n) {
+                        open.push(n);
+                    }
                 }
             }
         }
-        // Now we need loop until the open list is empty, taking
-        // one cube from the open list, finding its neighbors,
-        // and putting any non-rock neighbors back on the open list.
-        // We also need to add the cube we took the list to our
-        // `outside_cubes` set.
-        todo!()
     }
 
-    fn is_outside(&self, cube: Cube) -> bool {
+    fn is_not_rock(&self, cube: Cube) -> bool {
         self.cubes.contains(&cube).not()
+    }
+
+    fn air_pocket_cubes(&self) -> Vec<Cube> {
+        let mut result = Vec::new();
+        for x in 0..20 {
+            for y in 0..20 {
+                for z in 0..20 {
+                    let cube = Cube { x, y, z };
+                    if (self.cubes.contains(&cube) || self.outside_cubes.contains(&cube)).not() {
+                        result.push(cube);
+                    }
+                }
+            }
+        }
+        result
     }
 }
 
@@ -165,10 +172,10 @@ impl FromIterator<Cube> for LavaDroplet {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_18_test.input";
+static INPUT_FILE: &str = "../inputs/day_18.input";
 
 fn main() -> anyhow::Result<()> {
-    let lava_droplet: LavaDroplet = fs::read_to_string(INPUT_FILE)
+    let mut lava_droplet: LavaDroplet = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
         .trim()
         .lines()
@@ -176,10 +183,14 @@ fn main() -> anyhow::Result<()> {
         .collect::<Result<LavaDroplet, _>>()?;
 
     lava_droplet.find_outside();
+    let air_pocket_cubes: Vec<Cube> = lava_droplet.air_pocket_cubes();
+    let air_pocket: LavaDroplet = air_pocket_cubes.into_iter().collect::<LavaDroplet>();
+
+    println!("The air pocket was {air_pocket:?}");
 
     println!(
         "The surface area of the lava droplet is {}",
-        lava_droplet.surface_area()
+        lava_droplet.surface_area() - air_pocket.surface_area()
     );
 
     Ok(())
