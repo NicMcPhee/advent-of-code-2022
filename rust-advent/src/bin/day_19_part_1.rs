@@ -5,6 +5,7 @@
 
 use memoize::memoize;
 use once_cell::sync::Lazy;
+use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::{
     fs,
@@ -83,6 +84,7 @@ struct Blueprint {
     clay: Robot<Clay>,
     obsidian: Robot<Obsidian>,
     geode: Robot<Geode>,
+    max_ore_required: u8,
 }
 
 // Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
@@ -100,16 +102,20 @@ impl FromStr for Blueprint {
             .find_iter(s)
             .map(|m| m.as_str().parse::<u8>())
             .collect::<Result<_, _>>()?;
+        let max_ore_required = [numbers[1], numbers[2], numbers[3], numbers[5]]
+            .into_iter()
+            .max()
+            .unwrap();
         Ok(Self {
             number: numbers[0],
             ore: Robot::new_ore(numbers[1]),
             clay: Robot::new_clay(numbers[2]),
             obsidian: Robot::new_obsidian(numbers[3], numbers[4]),
             geode: Robot::new_geode(numbers[5], numbers[6]),
+            max_ore_required,
         })
     }
 }
-
 #[derive(Debug, Eq, PartialEq, Hash, Default, Copy, Clone)]
 struct Resources {
     num_ore: u8,
@@ -245,35 +251,46 @@ impl State {
     }
 }
 
-#[memoize]
-fn max_geodes(blueprint: Blueprint, state: State) -> u8 {
-    if state.remaining_minutes == 0 {
-        return state.resources.num_geodes;
-    }
-    println!("{state:?}");
-    #[allow(clippy::expect_used)]
-    blueprint
-        .child_states(&state)
-        .into_iter()
-        .map(|s| max_geodes(blueprint.clone(), s))
-        .max()
-        .expect("There should have been at least one child state")
-}
-
 impl Blueprint {
     fn quality_level(&self) -> usize {
         let state = State::default();
-        usize::from(self.number) * usize::from(max_geodes(self.clone(), state))
+        usize::from(self.number) * usize::from(self.max_geodes(&state))
+    }
+
+    fn max_geodes(&self, state: &State) -> u8 {
+        if state.remaining_minutes == 0 {
+            // println!("{state:?}");
+            return state.resources.num_geodes;
+        }
+        #[allow(clippy::expect_used)]
+        self.child_states(state)
+            .into_iter()
+            .map(|s| self.max_geodes(&s))
+            .max()
+            .expect("There should have been at least one child state")
     }
 
     fn child_states(&self, state: &State) -> Vec<State> {
         // Make robots & collect resources
+        if let Some(geode_state) = self.make_geode_robot(state) {
+            return vec![geode_state];
+        }
+        // if let Some(obsidian_state) = self.make_obsidian_robot(state) {
+        //     return vec![obsidian_state];
+        // }
+        // if let Some(clay_state) = self.make_clay_robot(state) {
+        //     return vec![clay_state];
+        // }
+        // if let Some(ore_state) = self.make_ore_robot(state) {
+        //     return vec![ore_state];
+        // }
+        // vec![self.make_no_robot(state).unwrap()]
         [
             Self::make_no_robot,
             Self::make_ore_robot,
             Self::make_clay_robot,
             Self::make_obsidian_robot,
-            Self::make_geode_robot,
+            // Self::make_geode_robot,
         ]
         .into_iter()
         .filter_map(|f| f(self, state))
@@ -282,6 +299,13 @@ impl Blueprint {
 
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn make_no_robot(&self, state: &State) -> Option<State> {
+        if state.robot_counts.num_ore_robots > self.max_ore_required
+            || state.robot_counts.num_clay_robots > self.obsidian.clay_cost
+            || state.resources.num_ore > self.max_ore_required
+        // || state.resources.num_clay > self.obsidian.clay_cost
+        {
+            return None;
+        }
         Some(State {
             remaining_minutes: state.remaining_minutes - 1,
             resources: state.resources + state.new_resources(),
@@ -290,6 +314,11 @@ impl Blueprint {
     }
 
     fn make_ore_robot(&self, state: &State) -> Option<State> {
+        if state.robot_counts.num_ore_robots >= self.max_ore_required
+            || state.resources.num_ore >= 8
+        {
+            return None;
+        }
         Some(State {
             remaining_minutes: state.remaining_minutes - 1,
             resources: (state.resources - Self::robot_costs(&self.ore))? + state.new_resources(),
@@ -298,6 +327,11 @@ impl Blueprint {
     }
 
     fn make_clay_robot(&self, state: &State) -> Option<State> {
+        if state.robot_counts.num_clay_robots >= self.obsidian.clay_cost
+            || state.resources.num_clay >= 30
+        {
+            return None;
+        }
         Some(State {
             remaining_minutes: state.remaining_minutes - 1,
             resources: (state.resources - Self::robot_costs(&self.clay))? + state.new_resources(),
@@ -306,6 +340,9 @@ impl Blueprint {
     }
 
     fn make_obsidian_robot(&self, state: &State) -> Option<State> {
+        if state.robot_counts.num_obsidian_robots >= self.geode.obsidian_cost {
+            return None;
+        }
         Some(State {
             remaining_minutes: state.remaining_minutes - 1,
             resources: (state.resources - Self::robot_costs(&self.obsidian))?
@@ -327,7 +364,7 @@ impl Blueprint {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_19_test.input";
+static INPUT_FILE: &str = "../inputs/day_19.input";
 
 fn main() -> anyhow::Result<()> {
     let blueprints: Vec<Blueprint> = fs::read_to_string(INPUT_FILE)
