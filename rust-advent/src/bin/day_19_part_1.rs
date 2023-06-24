@@ -3,9 +3,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use memoize::memoize;
 use once_cell::sync::Lazy;
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::{
     fs,
