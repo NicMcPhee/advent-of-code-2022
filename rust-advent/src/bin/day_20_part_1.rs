@@ -34,30 +34,7 @@ fn mix(values: &mut Vec<Element>) -> anyhow::Result<()> {
     let length_i16 =
         i16::try_from(length).with_context(|| format!("Converting {length} to i16 failed."))?;
     for i in 0..length {
-        let element_position = values
-            .iter()
-            .position(|e| e.initial_position == i)
-            .with_context(|| format!("Failed to find element with initial position {i}."))?;
-        let element = values
-            .get(element_position)
-            .with_context(|| format!("Retrieving element at index {element_position} failed"))?;
-        let value = element.value;
-        let element_position_i16 = i16::try_from(element_position)
-            .with_context(|| format!("Converting {element_position} to i16 failed."))?;
-        let mut new_position = (element_position_i16 + value).rem_euclid(length_i16);
-        if new_position == 0 && value < 0 {
-            new_position += length_i16 - 1;
-        }
-        let new_position_usize = usize::try_from(new_position)
-            .with_context(|| format!("Converting new_position {new_position} to usize failed."))?;
-
-        if value < 0 && new_position > element_position_i16 {
-            values[element_position..new_position_usize].rotate_left(1);
-        } else if new_position < element_position_i16 {
-            values[new_position_usize..=element_position].rotate_right(1);
-        } else {
-            values[element_position..=new_position_usize].rotate_left(1);
-        }
+        move_element(values, i, length_i16)?;
 
         // match new_position_usize {
         //     Ok(_) if value == 0 => {}
@@ -85,6 +62,33 @@ fn mix(values: &mut Vec<Element>) -> anyhow::Result<()> {
         // let vals: Vec<i16> = values.iter().map(|e| e.value).collect();
         // println!("Current vals = {vals:?}");
     }
+    Ok(())
+}
+
+fn move_element(values: &mut [Element], i: usize, length_i16: i16) -> anyhow::Result<()> {
+    let element_position = values
+        .iter()
+        .position(|e| e.initial_position == i)
+        .with_context(|| format!("Failed to find element with initial position {i}."))?;
+    let element = values
+        .get(element_position)
+        .with_context(|| format!("Retrieving element at index {element_position} failed"))?;
+    let value = element.value;
+    let element_position_i16 = i16::try_from(element_position)
+        .with_context(|| format!("Converting {element_position} to i16 failed."))?;
+    let mut new_position = (element_position_i16 + value).rem_euclid(length_i16);
+    if new_position == 0 && value < 0 {
+        new_position += length_i16 - 1;
+    }
+    let new_position_usize = usize::try_from(new_position)
+        .with_context(|| format!("Converting new_position {new_position} to usize failed."))?;
+    if value < 0 && new_position > element_position_i16 {
+        values[element_position..new_position_usize].rotate_left(1);
+    } else if new_position < element_position_i16 {
+        values[new_position_usize..=element_position].rotate_right(1);
+    } else {
+        values[element_position..=new_position_usize].rotate_left(1);
+    };
     Ok(())
 }
 
