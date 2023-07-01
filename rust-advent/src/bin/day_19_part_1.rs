@@ -103,7 +103,7 @@ impl FromStr for Blueprint {
         let max_ore_required = [numbers[1], numbers[2], numbers[3], numbers[5]]
             .into_iter()
             .max()
-            .unwrap();
+            .context("The set of ore required amounts was empty somehow.")?;
         Ok(Self {
             number: numbers[0],
             ore: Robot::new_ore(numbers[1]),

@@ -5,7 +5,7 @@
 
 use std::fs;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 
 // Have a Vector of (value, initial_position).
 
@@ -93,7 +93,7 @@ fn compute_result(values: &Vec<Element>) -> anyhow::Result<i16> {
     let zero_position = values
         .iter()
         .position(|e| e.value == 0)
-        .with_context(|| format!("Failed to find element with value 0."))?;
+        .with_context(|| "Failed to find element with value 0.")?;
     println!(
         "Position of zero is {zero_position}, with element {:?}",
         values[zero_position]
