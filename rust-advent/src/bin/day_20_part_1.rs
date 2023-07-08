@@ -15,6 +15,7 @@ struct Element {
 
 #[derive(Debug)]
 struct MovedElement {
+    #[allow(dead_code)]
     element: Element,
     current_position: usize,
     new_position: usize,
@@ -22,30 +23,6 @@ struct MovedElement {
 
 impl MovedElement {
     fn new(initial_position: usize, values: &[Element]) -> anyhow::Result<Self> {
-        // let length_i16 = i16::try_from(values.len())
-        //     .with_context(|| format!("Converting length {} to i16 failed.", values.len()))?;
-
-        // let current_position = values
-        //     .iter()
-        //     .position(|e| e.initial_position == initial_position)
-        //     .with_context(|| {
-        //         format!("Failed to find element with initial position {initial_position}.")
-        //     })?;
-        // let element = values
-        //     .get(current_position)
-        //     .with_context(|| format!("Retrieving element at index {current_position} failed"))?;
-        // let current_position_i16 = i16::try_from(current_position).with_context(|| {
-        //     format!("Couldn't convert current position {current_position} to an `i16`")
-        // })?;
-
-        // let mut new_position_i16 = (current_position_i16 + element.value).rem_euclid(length_i16);
-        // if new_position_i16 == 0 && element.value < 0 {
-        //     new_position_i16 += length_i16 - 1;
-        // }
-        // let new_position = usize::try_from(new_position_i16).with_context(|| {
-        //     format!("Converting new position as i16 {new_position_i16} to usize failed.")
-        // })?;
-
         let current_position = values
             .iter()
             .position(|e| e.initial_position == initial_position)
@@ -71,10 +48,6 @@ impl MovedElement {
             current_position,
             new_position,
         })
-    }
-
-    const fn value(&self) -> i16 {
-        self.element.value
     }
 }
 

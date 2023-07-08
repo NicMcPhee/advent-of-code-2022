@@ -15,7 +15,6 @@ struct Element {
 
 #[derive(Debug)]
 struct MovedElement {
-    element: Element,
     current_position: usize,
     new_position: usize,
 }
@@ -43,14 +42,9 @@ impl MovedElement {
         };
 
         Ok(Self {
-            element: *element,
             current_position,
             new_position,
         })
-    }
-
-    const fn value(&self) -> i64 {
-        self.element.value
     }
 }
 
