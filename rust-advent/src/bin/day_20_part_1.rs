@@ -22,8 +22,29 @@ struct MovedElement {
 
 impl MovedElement {
     fn new(initial_position: usize, values: &[Element]) -> anyhow::Result<Self> {
-        let length_i16 = i16::try_from(values.len())
-            .with_context(|| format!("Converting length {} to i16 failed.", values.len()))?;
+        // let length_i16 = i16::try_from(values.len())
+        //     .with_context(|| format!("Converting length {} to i16 failed.", values.len()))?;
+
+        // let current_position = values
+        //     .iter()
+        //     .position(|e| e.initial_position == initial_position)
+        //     .with_context(|| {
+        //         format!("Failed to find element with initial position {initial_position}.")
+        //     })?;
+        // let element = values
+        //     .get(current_position)
+        //     .with_context(|| format!("Retrieving element at index {current_position} failed"))?;
+        // let current_position_i16 = i16::try_from(current_position).with_context(|| {
+        //     format!("Couldn't convert current position {current_position} to an `i16`")
+        // })?;
+
+        // let mut new_position_i16 = (current_position_i16 + element.value).rem_euclid(length_i16);
+        // if new_position_i16 == 0 && element.value < 0 {
+        //     new_position_i16 += length_i16 - 1;
+        // }
+        // let new_position = usize::try_from(new_position_i16).with_context(|| {
+        //     format!("Converting new position as i16 {new_position_i16} to usize failed.")
+        // })?;
 
         let current_position = values
             .iter()
@@ -34,17 +55,16 @@ impl MovedElement {
         let element = values
             .get(current_position)
             .with_context(|| format!("Retrieving element at index {current_position} failed"))?;
-        let current_position_i16 = i16::try_from(current_position).with_context(|| {
-            format!("Couldn't convert current position {current_position} to an `i16`")
-        })?;
 
-        let mut new_position_i16 = (current_position_i16 + element.value).rem_euclid(length_i16);
-        if new_position_i16 == 0 && element.value < 0 {
-            new_position_i16 += length_i16 - 1;
-        }
-        let new_position = usize::try_from(new_position_i16).with_context(|| {
-            format!("Converting new position as i16 {new_position_i16} to usize failed.")
-        })?;
+        let length = values.len();
+        let length_i16 = i16::try_from(length)?;
+        let offset = usize::try_from(element.value.rem_euclid(length_i16 - 1))?;
+
+        let new_position = if current_position + offset < length {
+            current_position + offset
+        } else {
+            current_position + offset - (length - 1)
+        };
 
         Ok(Self {
             element: *element,
@@ -82,13 +102,19 @@ fn mix(values: &mut Vec<Element>) -> anyhow::Result<()> {
  */
 fn move_element(values: &mut [Element], i: usize) -> anyhow::Result<()> {
     let moved_element = MovedElement::new(i, values)?;
-    if moved_element.value() < 0 && moved_element.new_position > moved_element.current_position {
-        values[moved_element.current_position..moved_element.new_position].rotate_left(1);
-    } else if moved_element.new_position < moved_element.current_position {
-        values[moved_element.new_position..=moved_element.current_position].rotate_right(1);
-    } else {
+    if moved_element.value() == 0 {
+    } else if moved_element.current_position < moved_element.new_position {
         values[moved_element.current_position..=moved_element.new_position].rotate_left(1);
-    };
+    } else {
+        values[moved_element.new_position..=moved_element.current_position].rotate_right(1);
+    }
+    // if moved_element.value() < 0 && moved_element.new_position > moved_element.current_position {
+    //     values[moved_element.current_position..moved_element.new_position].rotate_left(1);
+    // } else if moved_element.new_position < moved_element.current_position {
+    //     values[moved_element.new_position..=moved_element.current_position].rotate_right(1);
+    // } else {
+    //     values[moved_element.current_position..=moved_element.new_position].rotate_left(1);
+    // };
     Ok(())
 }
 
@@ -116,7 +142,7 @@ fn compute_result(values: &Vec<Element>) -> anyhow::Result<i16> {
         .sum())
 }
 
-static INPUT_FILE: &str = "../inputs/day_20_test.input";
+static INPUT_FILE: &str = "../inputs/day_20.input";
 
 fn main() -> anyhow::Result<()> {
     let mut values: Vec<Element> = fs::read_to_string(INPUT_FILE)
@@ -150,7 +176,27 @@ mod test {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    fn zero_does_not_move() {
+    fn zero_does_not_value() {
+        let (vec, index) = (
+            [
+                Element {
+                    value: 0,
+                    initial_position: 1,
+                },
+                Element {
+                    value: -1,
+                    initial_position: 0,
+                },
+            ],
+            1,
+        );
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 0);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn two_element_list_does_not_change() {
         let (vec, index) = (
             [
                 Element {
@@ -165,7 +211,8 @@ mod test {
             0,
         );
         let moved_element = MovedElement::new(index, &vec).unwrap();
-        assert_eq!(moved_element.new_position, 0);
+        println!("{moved_element:?}");
+        assert_eq!(moved_element.new_position, 1);
     }
 
     #[test]

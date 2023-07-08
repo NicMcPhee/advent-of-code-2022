@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 1d2c438597f59db37eeeb96226e046acaa15736b34ac6ceaff84a6c1cb2b86f1 # shrinks to (vec, index) = ([Element { value: 0, initial_position: 1 }, Element { value: -1, initial_position: 0 }], 0)
+cc 4dfddfe1ee3063017f0abaa86fae0a8007d45a7ba5d12d506bdaad4580b64e75 # shrinks to (vec, index) = ([Element { value: 0, initial_position: 0 }], 0)
+cc 51547d4a1ef525a9fecafc3eab0511d8aa60f44900054eb2c3ddcf380fb581bb # shrinks to (vec, index) = ([Element { value: 0, initial_position: 0 }], 0)
