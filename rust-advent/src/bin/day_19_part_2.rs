@@ -3,9 +3,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use memoize::memoize;
 use once_cell::sync::Lazy;
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::{
     fs,
@@ -105,7 +103,7 @@ impl FromStr for Blueprint {
         let max_ore_required = [numbers[1], numbers[2], numbers[3], numbers[5]]
             .into_iter()
             .max()
-            .unwrap();
+            .context("The set of ore requirements was somehow empty.")?;
         Ok(Self {
             number: numbers[0],
             ore: Robot::new_ore(numbers[1]),
