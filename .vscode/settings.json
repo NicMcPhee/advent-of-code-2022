@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
-        "itertools"
+        "itertools",
+        "proptest"
     ],
     "rust-analyzer.linkedProjects": [
         "./rust-advent/Cargo.toml"
