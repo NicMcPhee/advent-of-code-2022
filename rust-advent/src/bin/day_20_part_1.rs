@@ -49,6 +49,10 @@ impl MovedElement {
             new_position,
         })
     }
+
+    fn value(&self) -> i16 {
+        self.element.value
+    }
 }
 
 fn mix(values: &mut Vec<Element>) -> anyhow::Result<()> {
@@ -145,7 +149,7 @@ mod test {
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    fn zero_does_not_value() {
+    fn zero_does_not_move() {
         let (vec, index) = (
             [
                 Element {
@@ -180,13 +184,32 @@ mod test {
             0,
         );
         let moved_element = MovedElement::new(index, &vec).unwrap();
-        println!("{moved_element:?}");
         assert_eq!(moved_element.new_position, 1);
     }
 
     #[test]
     #[allow(clippy::unwrap_used)]
-    fn two_maps_to_zero() {
+    fn two_wraps_back_same_place() {
+        let (vec, index) = (
+            [
+                Element {
+                    value: 2,
+                    initial_position: 0,
+                },
+                Element {
+                    value: 0,
+                    initial_position: 1,
+                },
+            ],
+            0,
+        );
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 0);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn two_maps_to_one() {
         let (vec, index) = (
             [
                 Element {
@@ -209,7 +232,7 @@ mod test {
             2,
         );
         let moved_element = MovedElement::new(index, &vec).unwrap();
-        assert_eq!(moved_element.new_position, 0);
+        assert_eq!(moved_element.new_position, 1);
     }
 
     #[test]
@@ -326,16 +349,18 @@ mod proptest_tests {
     use crate::{Element, MovedElement};
 
     prop_compose! {
-        fn vec_of_elements()(elements in prop::collection::vec(-100i16..100i16, 0..50)
+        fn vec_of_elements()(elements in prop::collection::vec(-100i16..100i16, 2..50)
             .prop_map(|values| {
                 values.into_iter()
                     .chain(once(0))
                     .unique()
                     .enumerate()
                     .map(|(initial_position, value)| Element { value, initial_position })
-                    .collect()
+                    .collect::<Vec<Element>>()
             }).prop_shuffle()
+            .prop_filter("Lists must have at least two elements", |elements| elements.len() > 1)
         ) -> Vec<Element> {
+            // prop_assume!(elements.len() > 1);
             elements
         }
     }
@@ -373,7 +398,13 @@ mod proptest_tests {
 
             let current_position = i16::try_from(moved_element.current_position)?;
             let num_elements_i16 = i16::try_from(vec.len())?;
-            let new_position = (current_position + moved_element.element.value).rem_euclid(num_elements_i16);
+
+            let offset = moved_element.value().rem_euclid(num_elements_i16 - 1);
+            let mut new_position = current_position + offset;
+            if new_position >= num_elements_i16 {
+                new_position -= num_elements_i16 - 1;
+            }
+
             prop_assert_eq!(
                 new_position,
                 i16::try_from(moved_element.new_position)?
