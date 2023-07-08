@@ -102,19 +102,15 @@ fn mix(values: &mut Vec<Element>) -> anyhow::Result<()> {
  */
 fn move_element(values: &mut [Element], i: usize) -> anyhow::Result<()> {
     let moved_element = MovedElement::new(i, values)?;
-    if moved_element.value() == 0 {
-    } else if moved_element.current_position < moved_element.new_position {
-        values[moved_element.current_position..=moved_element.new_position].rotate_left(1);
-    } else {
-        values[moved_element.new_position..=moved_element.current_position].rotate_right(1);
+
+    let current_position = moved_element.current_position;
+    let new_position = moved_element.new_position;
+
+    match current_position.cmp(&new_position) {
+        std::cmp::Ordering::Equal => {}
+        std::cmp::Ordering::Less => values[current_position..=new_position].rotate_left(1),
+        std::cmp::Ordering::Greater => values[new_position..=current_position].rotate_right(1),
     }
-    // if moved_element.value() < 0 && moved_element.new_position > moved_element.current_position {
-    //     values[moved_element.current_position..moved_element.new_position].rotate_left(1);
-    // } else if moved_element.new_position < moved_element.current_position {
-    //     values[moved_element.new_position..=moved_element.current_position].rotate_right(1);
-    // } else {
-    //     values[moved_element.current_position..=moved_element.new_position].rotate_left(1);
-    // };
     Ok(())
 }
 
