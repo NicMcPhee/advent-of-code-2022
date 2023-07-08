@@ -7,9 +7,7 @@ use std::fs;
 
 use anyhow::Context;
 
-// Have a Vector of (value, initial_position).
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct Element {
     value: i16,
     initial_position: usize,
@@ -144,4 +142,226 @@ fn main() -> anyhow::Result<()> {
     println!("The result is {result:?}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{Element, MovedElement};
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn zero_does_not_move() {
+        let (vec, index) = (
+            [
+                Element {
+                    value: 0,
+                    initial_position: 1,
+                },
+                Element {
+                    value: -1,
+                    initial_position: 0,
+                },
+            ],
+            0,
+        );
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 0);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn two_maps_to_zero() {
+        let (vec, index) = (
+            [
+                Element {
+                    value: 0,
+                    initial_position: 0,
+                },
+                Element {
+                    value: 1,
+                    initial_position: 1,
+                },
+                Element {
+                    value: 2,
+                    initial_position: 2,
+                },
+                Element {
+                    value: 3,
+                    initial_position: 3,
+                },
+            ],
+            2,
+        );
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 0);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn simple_wrapping() {
+        let vec = [
+            Element {
+                value: 1,
+                initial_position: 0,
+            },
+            Element {
+                value: 2,
+                initial_position: 1,
+            },
+            Element {
+                value: 7,
+                initial_position: 2,
+            },
+            Element {
+                value: -2,
+                initial_position: 3,
+            },
+            Element {
+                value: 0,
+                initial_position: 4,
+            },
+            Element {
+                value: 4,
+                initial_position: 5,
+            },
+        ];
+        let index = 2;
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 4);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn moves_to_right_end() {
+        let vec = [
+            Element {
+                value: 1,
+                initial_position: 0,
+            },
+            Element {
+                value: 2,
+                initial_position: 1,
+            },
+            Element {
+                value: 3,
+                initial_position: 2,
+            },
+            Element {
+                value: -2,
+                initial_position: 3,
+            },
+            Element {
+                value: 0,
+                initial_position: 4,
+            },
+            Element {
+                value: 4,
+                initial_position: 5,
+            },
+        ];
+        let index = 2;
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 5);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn wrapping_moves_to_the_left() {
+        let vec = [
+            Element {
+                value: 1,
+                initial_position: 0,
+            },
+            Element {
+                value: 2,
+                initial_position: 1,
+            },
+            Element {
+                value: -3,
+                initial_position: 2,
+            },
+            Element {
+                value: -2,
+                initial_position: 3,
+            },
+            Element {
+                value: 8,
+                initial_position: 4,
+            },
+            Element {
+                value: 4,
+                initial_position: 5,
+            },
+        ];
+        let index = 4;
+        let moved_element = MovedElement::new(index, &vec).unwrap();
+        assert_eq!(moved_element.new_position, 2);
+    }
+}
+
+#[cfg(test)]
+mod proptest_tests {
+    use std::iter::once;
+
+    use itertools::Itertools;
+    use proptest::test_runner::Config;
+    use proptest::{prelude::*, prop_compose, strategy::Just};
+
+    use crate::{Element, MovedElement};
+
+    prop_compose! {
+        fn vec_of_elements()(elements in prop::collection::vec(-100i16..100i16, 0..50)
+            .prop_map(|values| {
+                values.into_iter()
+                    .chain(once(0))
+                    .unique()
+                    .enumerate()
+                    .map(|(initial_position, value)| Element { value, initial_position })
+                    .collect()
+            }).prop_shuffle()
+        ) -> Vec<Element> {
+            elements
+        }
+    }
+
+    prop_compose! {
+        fn vec_and_index()(vec in vec_of_elements())
+            (index in 0..vec.len(), vec in Just(vec)) -> (Vec<Element>, usize) {
+                (vec, index)
+            }
+    }
+
+    proptest! {
+        #![proptest_config(Config { max_shrink_iters: 10_000, ..Config::default() })]
+
+        #[test]
+        fn moved_element_new_does_not_fail((vec, index) in vec_and_index()) {
+            let _ = MovedElement::new(index, &vec);
+        }
+
+        #[test]
+        #[allow(clippy::unwrap_used)]
+        fn new_position_has_correct_element((vec, index) in vec_and_index()) {
+            let moved_element = MovedElement::new(index, &vec).unwrap();
+
+            prop_assert_eq!(
+                vec[moved_element.current_position],
+                moved_element.element
+            );
+        }
+
+        #[test]
+        #[allow(clippy::unwrap_used)]
+        fn new_position_is_correct((vec, index) in vec_and_index()) {
+            let moved_element = MovedElement::new(index, &vec).unwrap();
+
+            let current_position = i16::try_from(moved_element.current_position)?;
+            let num_elements_i16 = i16::try_from(vec.len())?;
+            let new_position = (current_position + moved_element.element.value).rem_euclid(num_elements_i16);
+            prop_assert_eq!(
+                new_position,
+                i16::try_from(moved_element.new_position)?
+            );
+        }
+    }
 }

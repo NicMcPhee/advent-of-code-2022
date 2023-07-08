@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 1d2c438597f59db37eeeb96226e046acaa15736b34ac6ceaff84a6c1cb2b86f1 # shrinks to (vec, index) = ([Element { value: 0, initial_position: 1 }, Element { value: -1, initial_position: 0 }], 0)
