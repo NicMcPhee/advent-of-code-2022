@@ -4,17 +4,32 @@
 #![warn(clippy::expect_used)]
 #![allow(dead_code)]
 
-use std::{collections::HashMap, fs};
-
 use anyhow::Context;
+use nom::IResult;
+use std::{collections::HashMap, fmt::Display, fs, rc::Rc};
 
-#[derive(Clone)]
-enum Monkey {
-    Value(i32),
-    Expression(Operation, String, String),
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct MonkeyName(Rc<str>);
+
+impl MonkeyName {
+    fn new(s: &str) -> Self {
+        Self(Rc::from(s))
+    }
 }
 
-#[derive(Clone)]
+impl Display for MonkeyName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_ref())
+    }
+}
+
+#[derive(Debug, Clone)]
+enum Monkey {
+    Value(i32),
+    Expression(Operation, MonkeyName, MonkeyName),
+}
+
+#[derive(Debug, Clone)]
 enum Operation {
     Add,
     Subtract,
@@ -22,16 +37,25 @@ enum Operation {
     Divide,
 }
 
-// TODO: Possibly add a second `HashMap<String, i32>` that collects
-//   the known values of given monkeys. Then `get_value` looks there first,
-//    returning the value stored there if there is one. Otherwise it does the
-//    math and puts the result in that map before returning.
+#[derive(Debug)]
 struct Monkeys {
-    monkeys: HashMap<String, Monkey>,
+    monkeys: HashMap<MonkeyName, Monkey>,
+}
+
+fn parse_monkey(line: &str) -> IResult<&str, (MonkeyName, Monkey)> {
+    todo!()
+}
+
+fn get_monkey(line: &str) -> anyhow::Result<(MonkeyName, Monkey)> {
+    parse_monkey(line)
+        // The `<nom::error…>` bit is necessary to specify _which_ `to_owned` we went to use here.
+        .map_err(nom::Err::<nom::error::Error<&str>>::to_owned)
+        .with_context(|| format!("Failed to parse line into a monkey: {line}"))
+        .map(|(_, m)| m)
 }
 
 impl Monkeys {
-    fn get_value(&mut self, monkey_name: &String) -> anyhow::Result<i32> {
+    fn get_value(&mut self, monkey_name: &MonkeyName) -> anyhow::Result<i32> {
         let monkey = self
             .monkeys
             .get(monkey_name)
@@ -63,35 +87,17 @@ impl Monkeys {
 static INPUT_FILE: &str = "../inputs/day_21_test.input";
 
 fn main() -> anyhow::Result<()> {
-    // let monkeys: Monkeys = fs::read_to_string(INPUT_FILE)
-    //     .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
-    //     .trim()
-    //     .lines()
-    //     .map(str::parse);
+    let monkeys = fs::read_to_string(INPUT_FILE)
+        .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
+        .lines()
+        .map(get_monkey)
+        .collect::<anyhow::Result<HashMap<MonkeyName, Monkey>>>()?;
+    let monkeys = Monkeys { monkeys };
 
-    // let mut values: Vec<Element> = fs::read_to_string(INPUT_FILE)
-    //     .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?
-    //     .trim()
-    //     .lines()
-    //     .map(str::parse::<i64>)
-    //     .enumerate()
-    //     .map(|(i, r)| {
-    //         Ok(Element {
-    //             value: r? * 811_589_153,
-    //             initial_position: i,
-    //         })
-    //     })
-    //     .collect::<anyhow::Result<Vec<Element>>>()?;
+    println!("{monkeys:?}");
 
-    // for _ in 0..10 {
-    //     mix(&mut values)?;
-    // }
-
-    // println!("After mixing: {values:?}");
-
-    // let result = compute_result(&values);
-
-    // println!("The result is {result:?}");
+    // Look up and print the value of the monkey named "root".
+    todo!();
 
     Ok(())
 }
