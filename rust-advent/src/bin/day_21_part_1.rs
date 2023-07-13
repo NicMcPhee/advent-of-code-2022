@@ -113,6 +113,17 @@ impl Monkeys {
             }
         }
     }
+
+    fn print_graph(&self) {
+        println!("digraph Day_21_data {{");
+        for (parent, child) in &self.monkeys {
+            if let Monkey::Expression(_, left, right) = child {
+                println!("    {parent} -> {left};");
+                println!("    {parent} -> {right};");
+            }
+        }
+        println!("}}");
+    }
 }
 
 static INPUT_FILE: &str = "../inputs/day_21.input";
@@ -124,6 +135,8 @@ fn main() -> anyhow::Result<()> {
         .map(get_monkey)
         .collect::<anyhow::Result<HashMap<MonkeyName, Monkey>>>()?;
     let mut monkeys = Monkeys { monkeys };
+
+    monkeys.print_graph();
 
     // println!("{monkeys:?}");
 
