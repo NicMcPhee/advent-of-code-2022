@@ -80,41 +80,6 @@ impl BitSet {
     }
 }
 
-#[cfg(test)]
-mod bit_set_tests {
-    use super::*;
-
-    #[test]
-    fn empty_bit_set() {
-        let empty = BitSet { bits: 0 };
-        for i in 0..64 {
-            assert!(empty.contains(i).not());
-        }
-    }
-
-    #[test]
-    fn full_bit_set() {
-        let mut bits = BitSet { bits: 0 };
-        for i in 0..64 {
-            bits = bits.insert(i);
-        }
-        for i in 0..64 {
-            assert!(bits.contains(i));
-        }
-    }
-
-    #[test]
-    fn only_even_bits() {
-        let mut bits = BitSet { bits: 0 };
-        for i in 0..32 {
-            bits = bits.insert(i * 2);
-        }
-        for i in 0..64 {
-            assert_eq!(bits.contains(i), i % 2 == 0);
-        }
-    }
-}
-
 #[derive(Debug)]
 struct NumberedValve {
     number: u8,
@@ -256,4 +221,39 @@ fn main() -> anyhow::Result<()> {
     println!("The maximum release is {result}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod bit_set_tests {
+    use super::*;
+
+    #[test]
+    fn empty_bit_set() {
+        let empty = BitSet { bits: 0 };
+        for i in 0..64 {
+            assert!(empty.contains(i).not());
+        }
+    }
+
+    #[test]
+    fn full_bit_set() {
+        let mut bits = BitSet { bits: 0 };
+        for i in 0..64 {
+            bits = bits.insert(i);
+        }
+        for i in 0..64 {
+            assert!(bits.contains(i));
+        }
+    }
+
+    #[test]
+    fn only_even_bits() {
+        let mut bits = BitSet { bits: 0 };
+        for i in 0..32 {
+            bits = bits.insert(i * 2);
+        }
+        for i in 0..64 {
+            assert_eq!(bits.contains(i), i % 2 == 0);
+        }
+    }
 }

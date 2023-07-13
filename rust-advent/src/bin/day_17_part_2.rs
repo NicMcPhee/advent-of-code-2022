@@ -3,12 +3,17 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashMap, fs, iter::{Cycle, Enumerate}, ops::Not, vec::IntoIter, fmt::Display};
-
+use anyhow::{bail, Context};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    fs,
+    iter::{Cycle, Enumerate},
+    ops::Not,
+    vec::IntoIter,
+};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-
-use anyhow::{Context, bail};
 
 #[derive(Clone)]
 enum JetDirection {
@@ -232,7 +237,7 @@ impl Chamber {
                 println!("Rock number {n} got us to row 2693");
                 found_start = true;
             }
-            if !found_end && self.highest_rock_point >= 2693+2694 {
+            if !found_end && self.highest_rock_point >= 2693 + 2694 {
                 println!("Rock number {n} got us to row 2694");
                 found_end = true;
             }
@@ -248,13 +253,11 @@ impl Chamber {
         let mut jet: JetDirection;
         #[allow(clippy::expect_used)]
         loop {
-            (jet_index, jet) = self.jet_directions
-                                .next()
-                                .expect("We should never reach the end of jet directions because of `cycle`");
-            rock.shift(
-                &jet,
-                &self.occupied,
-            );
+            (jet_index, jet) = self
+                .jet_directions
+                .next()
+                .expect("We should never reach the end of jet directions because of `cycle`");
+            rock.shift(&jet, &self.occupied);
             if rock.drop(&self.occupied).not() {
                 break;
             }
@@ -330,13 +333,13 @@ impl Chamber {
             slow += 1;
             fast += 2;
             if fast > self.highest_rock_point {
-                return None
+                return None;
             }
         }
         println!("Slow = {slow}, fast = {fast}");
         println!("{:?}", self.row(slow));
         println!("{:?}", self.row(fast));
-        Some((slow, fast-slow))
+        Some((slow, fast - slow))
     }
 }
 
@@ -380,7 +383,11 @@ fn main() -> anyhow::Result<()> {
 
     // chamber.drop_rocks(10_000);
     chamber.drop_rocks(1742 + 1583);
-    println!("Height after {} rocks is {}", 1742 + 1583, chamber.highest_rock_point);
+    println!(
+        "Height after {} rocks is {}",
+        1742 + 1583,
+        chamber.highest_rock_point
+    );
 
     // 35 rocks is the cycle length on the test data.
     // Those 35 rocks add 53 rows to the height.

@@ -110,30 +110,6 @@ impl Stacks {
     }
 }
 
-#[cfg(test)]
-mod stacks_from_str_tests {
-    use super::*;
-
-    #[test]
-    fn test_from_str() {
-        // TODO: This string is pretty ugly. @esitsu@Twitch suggested in `indoc`
-        //   crate, which would allow us to indent things the way we want here,
-        //   and it would left shift everything so it was up against the left
-        //   side. That would be nicer, but I don't know if I'll take the time
-        //   to do this?
-        let input = "    [D]                                       
-[N] [C]                                           
-[Z] [M] [P]                                       
- 1   2   3";
-        #[allow(clippy::unwrap_used)]
-        let stacks: Stacks = input.parse().unwrap();
-        assert_eq!(2, stacks.stacks[0].len());
-        assert_eq!(3, stacks.stacks[1].len());
-        assert_eq!(vec!['M', 'C', 'D'], stacks.stacks[1]);
-        assert_eq!(1, stacks.stacks[2].len());
-    }
-}
-
 struct Instruction {
     num_to_move: usize,
     from_stack: usize,
@@ -186,4 +162,28 @@ fn main() -> Result<()> {
     println!("The top of the stacks is {}", final_state.tops_string()?);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod stacks_from_str_tests {
+    use super::*;
+
+    #[test]
+    fn test_from_str() {
+        // TODO: This string is pretty ugly. @esitsu@Twitch suggested in `indoc`
+        //   crate, which would allow us to indent things the way we want here,
+        //   and it would left shift everything so it was up against the left
+        //   side. That would be nicer, but I don't know if I'll take the time
+        //   to do this?
+        let input = "    [D]                                       
+[N] [C]                                           
+[Z] [M] [P]                                       
+ 1   2   3";
+        #[allow(clippy::unwrap_used)]
+        let stacks: Stacks = input.parse().unwrap();
+        assert_eq!(2, stacks.stacks[0].len());
+        assert_eq!(3, stacks.stacks[1].len());
+        assert_eq!(vec!['M', 'C', 'D'], stacks.stacks[1]);
+        assert_eq!(1, stacks.stacks[2].len());
+    }
 }

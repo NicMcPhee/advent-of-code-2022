@@ -49,20 +49,6 @@ fn process_elves(input_file: &str) -> Result<[usize; 3]> {
     Ok(top_three)
 }
 
-#[cfg(test)]
-mod process_elves_test {
-    use super::process_elves;
-    use super::INPUT_FILE;
-
-    #[test]
-    fn check_process_elves() {
-        #[allow(clippy::unwrap_used)]
-        let mut big_three = process_elves(INPUT_FILE).unwrap();
-        big_three.sort_unstable();
-        assert_eq!([68579, 69863, 74394], big_three);
-    }
-}
-
 /**
  * An "elf" is a string that is a sequence of numbers, each
  * on their own line. E.g.,
@@ -86,4 +72,18 @@ fn process_elf(elf_str: &str) -> Result<usize> {
                 .with_context(|| format!("Failed to parse '{s}' to `usize`"))
         })
         .sum::<Result<usize>>()
+}
+
+#[cfg(test)]
+mod process_elves_test {
+    use super::process_elves;
+    use super::INPUT_FILE;
+
+    #[test]
+    fn check_process_elves() {
+        #[allow(clippy::unwrap_used)]
+        let mut big_three = process_elves(INPUT_FILE).unwrap();
+        big_three.sort_unstable();
+        assert_eq!([68579, 69863, 74394], big_three);
+    }
 }

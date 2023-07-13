@@ -97,7 +97,7 @@ impl BridgeState {
 
     fn update_knot(&mut self, knot_to_update: usize) {
         let preceding_knot = self.knots[knot_to_update - 1];
-        let mut current_knot = &mut self.knots[knot_to_update];
+        let current_knot = &mut self.knots[knot_to_update];
         match preceding_knot.dist(current_knot) {
             Position { x, y } if x.abs() == 2 => {
                 current_knot.x += x.signum();
