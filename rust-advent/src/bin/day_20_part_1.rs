@@ -50,7 +50,8 @@ impl MovedElement {
         })
     }
 
-    fn value(&self) -> i16 {
+    #[allow(dead_code)]
+    const fn value(&self) -> i16 {
         self.element.value
     }
 }

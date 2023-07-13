@@ -7,7 +7,7 @@ use std::{fs, ops::RangeInclusive};
 
 use anyhow::Context;
 use itertools::Itertools;
-use range_union_find::IntRangeUnionFind;
+use range_union_find::RangeUnionFind;
 use regex::{Captures, Regex};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -93,7 +93,7 @@ impl Cave {
 
     fn coverage(&self, row: i32) -> anyhow::Result<usize> {
         // Replace the `for` loop with a fold or reduce?
-        let mut union_range = IntRangeUnionFind::new();
+        let mut union_range = RangeUnionFind::new();
         for r in self.row_ranges(row)? {
             if !r.is_empty() {
                 union_range

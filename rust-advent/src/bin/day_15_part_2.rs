@@ -6,7 +6,7 @@
 use std::{fs, ops::RangeInclusive};
 
 use anyhow::{bail, Context};
-use range_union_find::IntRangeUnionFind;
+use range_union_find::RangeUnionFind;
 use regex::{Captures, Regex};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -88,9 +88,9 @@ impl Cave {
         Ok(())
     }
 
-    fn union_range(&self, row: i32) -> anyhow::Result<IntRangeUnionFind<i32>> {
+    fn union_range(&self, row: i32) -> anyhow::Result<RangeUnionFind<i32>> {
         // Replace the `for` loop with a fold or reduce?
-        let mut union_range = IntRangeUnionFind::new();
+        let mut union_range = RangeUnionFind::new();
         for r in self.row_ranges(row)? {
             if !r.is_empty() {
                 union_range
@@ -115,7 +115,7 @@ impl Cave {
         }
     }
 
-    fn extract_gap(coverage: &IntRangeUnionFind<i32>) -> anyhow::Result<i32> {
+    fn extract_gap(coverage: &RangeUnionFind<i32>) -> anyhow::Result<i32> {
         let parts: Vec<_> = coverage.to_collection();
         for r in parts {
             if (0..=4_000_000).contains(&(r.end() + 1)) {
