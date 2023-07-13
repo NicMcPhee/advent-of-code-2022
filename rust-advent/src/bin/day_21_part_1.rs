@@ -5,7 +5,14 @@
 #![allow(dead_code)]
 
 use anyhow::Context;
-use nom::IResult;
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{alpha1, i64, one_of, space1},
+    combinator::map,
+    sequence::{delimited, separated_pair, tuple},
+    IResult,
+};
 use std::{collections::HashMap, fmt::Display, fs, rc::Rc};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -25,7 +32,7 @@ impl Display for MonkeyName {
 
 #[derive(Debug, Clone)]
 enum Monkey {
-    Value(i32),
+    Value(i64),
     Expression(Operation, MonkeyName, MonkeyName),
 }
 
@@ -42,8 +49,32 @@ struct Monkeys {
     monkeys: HashMap<MonkeyName, Monkey>,
 }
 
+fn monkey_name(line: &str) -> IResult<&str, MonkeyName> {
+    map(alpha1, MonkeyName::new)(line)
+}
+
+fn operator(s: &str) -> IResult<&str, Operation> {
+    map(delimited(space1, one_of("+-*/"), space1), |c| match c {
+        '+' => Operation::Add,
+        '-' => Operation::Subtract,
+        '*' => Operation::Multiply,
+        '/' => Operation::Divide,
+        _ => unreachable!("`one_of` given {s} returned an illegal operation character"),
+    })(s)
+}
+
+fn monkey(s: &str) -> IResult<&str, Monkey> {
+    alt((
+        map(i64, Monkey::Value),
+        map(
+            tuple((monkey_name, operator, monkey_name)),
+            |(left, op, right)| Monkey::Expression(op, left, right),
+        ),
+    ))(s)
+}
+
 fn parse_monkey(line: &str) -> IResult<&str, (MonkeyName, Monkey)> {
-    todo!()
+    separated_pair(monkey_name, tag(": "), monkey)(line)
 }
 
 fn get_monkey(line: &str) -> anyhow::Result<(MonkeyName, Monkey)> {
@@ -55,7 +86,7 @@ fn get_monkey(line: &str) -> anyhow::Result<(MonkeyName, Monkey)> {
 }
 
 impl Monkeys {
-    fn get_value(&mut self, monkey_name: &MonkeyName) -> anyhow::Result<i32> {
+    fn get_value(&mut self, monkey_name: &MonkeyName) -> anyhow::Result<i64> {
         let monkey = self
             .monkeys
             .get(monkey_name)
@@ -84,7 +115,7 @@ impl Monkeys {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_21_test.input";
+static INPUT_FILE: &str = "../inputs/day_21.input";
 
 fn main() -> anyhow::Result<()> {
     let monkeys = fs::read_to_string(INPUT_FILE)
@@ -92,12 +123,14 @@ fn main() -> anyhow::Result<()> {
         .lines()
         .map(get_monkey)
         .collect::<anyhow::Result<HashMap<MonkeyName, Monkey>>>()?;
-    let monkeys = Monkeys { monkeys };
+    let mut monkeys = Monkeys { monkeys };
 
-    println!("{monkeys:?}");
+    // println!("{monkeys:?}");
 
     // Look up and print the value of the monkey named "root".
-    todo!();
+    let result = monkeys.get_value(&MonkeyName::new("root"))?;
+
+    println!("The result is {result}");
 
     Ok(())
 }
