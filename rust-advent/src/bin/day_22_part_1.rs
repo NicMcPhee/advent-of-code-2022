@@ -5,13 +5,23 @@
 
 use anyhow::{bail, Context};
 use ndarray::{Array, Array2, ArrayView};
-use std::{fs, str::FromStr};
+use std::{fmt::Display, fs, str::FromStr};
 
 #[derive(Clone, Debug)]
 enum Tile {
     Space,
     Open,
     Wall,
+}
+
+impl Display for Tile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Space => write!(f, " "),
+            Self::Open => write!(f, "."),
+            Self::Wall => write!(f, "#"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -45,6 +55,18 @@ impl Map {
             .collect::<anyhow::Result<Vec<Tile>>>()?;
         println!("About to push {} tiles", tiles.len());
         self.tiles.push_row(ArrayView::from(&tiles))?;
+        Ok(())
+    }
+}
+
+impl Display for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in self.tiles.rows() {
+            for tile in row.iter() {
+                write!(f, "{tile}")?;
+            }
+            writeln!(f)?;
+        }
         Ok(())
     }
 }
@@ -108,7 +130,7 @@ fn main() -> anyhow::Result<()> {
         map.add_row(line)?;
     }
 
-    println!("{map:?}");
+    println!("{map}");
 
     let directions: Directions = str::parse(
         lines
