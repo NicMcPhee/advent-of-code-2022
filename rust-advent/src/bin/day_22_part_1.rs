@@ -3,11 +3,21 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use anyhow::{bail, Context};
-use ndarray::{Array, Array2, ArrayView};
-use std::{fmt::Display, fs, str::FromStr};
+use anyhow::Context;
+use itertools::repeat_n;
+use ndarray::{concatenate, Array, Array2, Axis};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{i32, newline},
+    combinator::{all_consuming, map},
+    multi::{many0, many1, separated_list1},
+    sequence::{separated_pair, terminated},
+    IResult,
+};
+use std::{fmt::Display, fs};
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone)]
 enum Tile {
     Space,
     Open,
@@ -29,9 +39,6 @@ struct Map {
     tiles: Array2<Tile>,
 }
 
-// TODO: `impl Display for Map` so we can see if we're parsing the map
-//   correctly.
-
 impl Map {
     fn empty(num_columns: usize) -> Self {
         Self {
@@ -39,22 +46,11 @@ impl Map {
         }
     }
 
-    // TODO: Pad the row on the right with Tile::Space when it's shorter
-    // than the `tiles` array.
-    fn add_row(&mut self, row: &str) -> anyhow::Result<()> {
-        let tiles = row
-            .chars()
-            .map(|c| {
-                Ok(match c {
-                    ' ' => Tile::Space,
-                    '.' => Tile::Open,
-                    '#' => Tile::Wall,
-                    _ => bail!("We found an illegal tile character: '{c}."),
-                })
-            })
-            .collect::<anyhow::Result<Vec<Tile>>>()?;
-        println!("About to push {} tiles", tiles.len());
-        self.tiles.push_row(ArrayView::from(&tiles))?;
+    fn add_row(&mut self, row: &[Tile]) -> anyhow::Result<()> {
+        let num_spaces = self.tiles.ncols() - row.len();
+        let padding_spaces = repeat_n(Tile::Space, num_spaces).collect::<Vec<_>>();
+        let padded_row = concatenate![Axis(0), row, padding_spaces];
+        self.tiles.push_row(padded_row.view())?;
         Ok(())
     }
 }
@@ -71,6 +67,25 @@ impl Display for Map {
     }
 }
 
+fn parse_map_row(s: &str) -> IResult<&str, Vec<Tile>> {
+    many1(alt((
+        map(tag(" "), |_| Tile::Space),
+        map(tag("."), |_| Tile::Open),
+        map(tag("#"), |_| Tile::Wall),
+    )))(s)
+}
+
+fn parse_map(s: &str) -> IResult<&str, Map> {
+    let (rest, rows) = separated_list1(newline, parse_map_row)(s)?;
+    let max_width = rows.iter().map(std::vec::Vec::len).max().unwrap();
+    let mut map = Map::empty(max_width);
+
+    for line in &rows {
+        map.add_row(line).unwrap();
+    }
+    Ok((rest, map))
+}
+
 #[derive(Debug)]
 enum Move {
     Left,
@@ -83,32 +98,23 @@ struct Directions {
     moves: Vec<Move>,
 }
 
-// Maybe re-do this with `nom`? It would handle the edge cases and error handling much more
-// cleanly than I am here.
-impl FromStr for Directions {
-    type Err = anyhow::Error;
+fn parse_directions(s: &str) -> IResult<&str, Directions> {
+    let (rest, moves) = many1(alt((
+        map(i32, Move::Forward),
+        map(tag("L"), |_| Move::Left),
+        map(tag("R"), |_| Move::Right),
+    )))(s)?;
+    Ok((rest, Directions { moves }))
+}
 
-    #[allow(clippy::unwrap_used)]
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        let moves = s
-            .split_inclusive("LR")
-            .flat_map(|s| {
-                // I think this logic is problematic. We repeat the parsing logic
-                // three times, and we create a ton of little vectors, which isn't
-                // pretty. We also have three `unwrap()`s, which is icky.
-                if let Some(n_str) = s.strip_suffix('L') {
-                    let n = str::parse::<i32>(n_str).unwrap();
-                    return vec![Move::Forward(n), Move::Left];
-                } else if let Some(n_str) = s.strip_suffix('R') {
-                    let n = str::parse::<i32>(n_str).unwrap();
-                    return vec![Move::Forward(n), Move::Right];
-                }
-                let n = str::parse::<i32>(s).unwrap();
-                vec![Move::Forward(n)]
-            })
-            .collect::<Vec<Move>>();
-        Ok(Self { moves })
-    }
+fn parse_file(contents: &str) -> anyhow::Result<(Map, Directions)> {
+    let (_, (map, directions)) = all_consuming(terminated(
+        separated_pair(parse_map, many1(newline), parse_directions),
+        many0(newline),
+    ))(contents)
+    .map_err(nom::Err::<nom::error::Error<&str>>::to_owned)
+    .context("Failed to parse the input file.")?;
+    Ok((map, directions))
 }
 
 static INPUT_FILE: &str = "../inputs/day_22_test.input";
@@ -116,27 +122,10 @@ static INPUT_FILE: &str = "../inputs/day_22_test.input";
 fn main() -> anyhow::Result<()> {
     let file = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
-    let mut lines = file.lines().peekable();
 
-    let width = lines.peek().context("Couldn't find a first line")?.len();
-    let mut map = Map::empty(width);
-
-    // TODO: Figure out why `&mut` was needed here to prevent the loop from taking ownership.
-    for line in &mut lines {
-        if line.is_empty() {
-            break;
-        }
-        // parse line and add to array
-        map.add_row(line)?;
-    }
+    let (map, directions) = parse_file(&file)?;
 
     println!("{map}");
-
-    let directions: Directions = str::parse(
-        lines
-            .next()
-            .context("Failed to parse the directions line")?,
-    )?;
 
     println!("{directions:?}");
 
