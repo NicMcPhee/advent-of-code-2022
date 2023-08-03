@@ -47,37 +47,33 @@ impl Position {
 
     // TODO: Pass `Map` as an additional argument, wrap when necessary,
     //   and return `Self` instead of `Option<Self>`.
-    fn forward_one(&self, direction: Direction) -> Option<Self> {
-        Some(match direction {
-            Direction::Left => Self {
-                x: self.x.checked_sub(1)?,
-                y: self.y,
-            },
-            Direction::Right => Self {
-                x: self.x + 1,
-                y: self.y,
-            },
-            Direction::Up => Self {
-                x: self.x,
-                y: self.y.checked_sub(1)?,
-            },
-            Direction::Down => Self {
-                x: self.x,
-                y: self.y + 1,
-            },
-        })
+    fn forward_one(self, direction: Direction, max_x: usize, max_y: usize) -> Self {
+        let mut x = self.x;
+        let mut y = self.y;
+
+        match direction {
+            Direction::Left => x = x.checked_sub(1).unwrap_or(max_x - 1),
+            Direction::Right => x = (x + 1) % max_x,
+            Direction::Up => y = y.checked_sub(1).unwrap_or(max_y - 1),
+            Direction::Down => y = (y + 1) % max_y,
+        };
+        Self { x, y }
     }
 }
 
 #[derive(Debug)]
 struct Map {
     tiles: Array2<Tile>,
+    max_x: usize,
+    max_y: usize,
 }
 
 impl Map {
     fn empty(num_columns: usize) -> Self {
         Self {
             tiles: Array::from_elem((0, num_columns), Tile::Space),
+            max_x: num_columns,
+            max_y: 0,
         }
     }
 
@@ -86,23 +82,24 @@ impl Map {
         let padding_spaces = repeat_n(Tile::Space, num_spaces).collect::<Vec<_>>();
         let padded_row = concatenate![Axis(0), row, padding_spaces];
         self.tiles.push_row(padded_row.view())?;
+        self.max_y += 1;
         Ok(())
     }
 
-    fn get_by_position(&self, position: Position) -> Option<&Tile> {
-        self.tiles.get((position.x, position.y))
+    fn get_by_position(&self, position: Position) -> Tile {
+        // `new_position` should always be a legal position on the map, so `get_by_position` should always succeed.
+        #[allow(clippy::unwrap_used)]
+        *self.tiles.get((position.x, position.y)).unwrap()
     }
 
-    fn forward_with_tile(&self, position: Position, direction: Direction) -> (&Tile, Position) {
-        position
-            .forward_one(direction)
-            .and_then(|new_position| Some((self.get_by_position(new_position)?, new_position)))
-            .unwrap_or((&Tile::Space, position))
+    fn forward_one(&self, position: Position, direction: Direction) -> Position {
+        position.forward_one(direction, self.max_x, self.max_y)
     }
 
     fn forward(&self, mut position: Position, direction: Direction, num_steps: u32) -> Position {
         for _ in 0..num_steps {
-            let (tile, new_position) = self.forward_with_tile(position, direction);
+            let new_position = self.forward_one(position, direction);
+            let tile = self.get_by_position(new_position);
             position = match tile {
                 Tile::Space => match self.wrap(position, direction) {
                     Some(new_position) => new_position,
@@ -115,8 +112,15 @@ impl Map {
         position
     }
 
+    // This is called if we've run into a `Tile::Space`, which means we need to keep
+    // going in the current direction (wrapping around the map edge as handed by
+    // Position::forward_one) until we find a non-space tile. If that tile is a
+    // `Tile::Wall`, then we can't wrap in that direction and we return `None`. If
+    // it's a `Tile::Open` than that's the `new_position` that we've moved to and
+    // we want to return that.
     fn wrap(&self, position: Position, direction: Direction) -> Option<Position> {
-        let (tile, new_position) = self.forward_with_tile(position, direction);
+        let new_position = self.forward_one(position, direction);
+        let tile = self.get_by_position(new_position);
         if position == new_position {}
         todo!()
     }
