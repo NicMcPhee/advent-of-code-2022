@@ -47,7 +47,7 @@ impl Position {
 
     // TODO: Pass `Map` as an additional argument, wrap when necessary,
     //   and return `Self` instead of `Option<Self>`.
-    fn forward_one(self, direction: Direction, max_x: usize, max_y: usize) -> Self {
+    fn forward_one(&self, direction: Direction, max_x: usize, max_y: usize) -> Self {
         let mut x = self.x;
         let mut y = self.y;
 
@@ -92,13 +92,13 @@ impl Map {
         *self.tiles.get((position.x, position.y)).unwrap()
     }
 
-    fn forward_one(&self, position: Position, direction: Direction) -> Position {
+    fn forward_one(&self, position: &Position, direction: Direction) -> Position {
         position.forward_one(direction, self.max_x, self.max_y)
     }
 
     fn forward(&self, mut position: Position, direction: Direction, num_steps: u32) -> Position {
         for _ in 0..num_steps {
-            let new_position = self.forward_one(position, direction);
+            let new_position = self.forward_one(&position, direction);
             let tile = self.get_by_position(new_position);
             position = match tile {
                 Tile::Space => match self.wrap(position, direction) {
@@ -113,13 +113,13 @@ impl Map {
     }
 
     // This is called if we've run into a `Tile::Space`, which means we need to keep
-    // going in the current direction (wrapping around the map edge as handed by
+    // going in the current direction (wrapping around the map edge is handled by
     // Position::forward_one) until we find a non-space tile. If that tile is a
     // `Tile::Wall`, then we can't wrap in that direction and we return `None`. If
     // it's a `Tile::Open` than that's the `new_position` that we've moved to and
     // we want to return that.
     fn wrap(&self, position: Position, direction: Direction) -> Option<Position> {
-        let new_position = self.forward_one(position, direction);
+        let new_position = self.forward_one(&position, direction);
         let tile = self.get_by_position(new_position);
         if position == new_position {}
         todo!()
