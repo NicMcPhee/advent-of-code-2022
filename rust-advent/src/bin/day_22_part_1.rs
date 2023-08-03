@@ -9,7 +9,7 @@ use ndarray::{concatenate, Array, Array2, Axis};
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{i32, newline},
+    character::complete::{newline, u32},
     combinator::{all_consuming, map},
     multi::{many0, many1, separated_list1},
     sequence::{separated_pair, terminated},
@@ -17,7 +17,7 @@ use nom::{
 };
 use std::{fmt::Display, fs};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Tile {
     Space,
     Open,
@@ -142,6 +142,7 @@ fn parse_map_row(s: &str) -> IResult<&str, Vec<Tile>> {
     )))(s)
 }
 
+#[allow(clippy::unwrap_used)]
 fn parse_map(s: &str) -> IResult<&str, Map> {
     let (rest, rows) = separated_list1(newline, parse_map_row)(s)?;
     let max_width = rows.iter().map(std::vec::Vec::len).max().unwrap();
@@ -154,18 +155,18 @@ fn parse_map(s: &str) -> IResult<&str, Map> {
 }
 
 #[derive(Debug)]
-enum Move {
+enum Action {
     Left,
     Right,
-    Forward(i32),
+    Forward(u32),
 }
 
 #[derive(Debug)]
-struct Directions {
-    moves: Vec<Move>,
+struct Actions {
+    moves: Vec<Action>,
 }
 
-fn parse_directions(s: &str) -> IResult<&str, Directions> {
+#[derive(Copy, Clone)]
 enum Direction {
     Left,
     Right,
@@ -241,15 +242,16 @@ impl You {
     }
 }
 
+fn parse_directions(s: &str) -> IResult<&str, Actions> {
     let (rest, moves) = many1(alt((
-        map(i32, Move::Forward),
-        map(tag("L"), |_| Move::Left),
-        map(tag("R"), |_| Move::Right),
+        map(u32, Action::Forward),
+        map(tag("L"), |_| Action::Left),
+        map(tag("R"), |_| Action::Right),
     )))(s)?;
-    Ok((rest, Directions { moves }))
+    Ok((rest, Actions { moves }))
 }
 
-fn parse_file(contents: &str) -> anyhow::Result<(Map, Directions)> {
+fn parse_file(contents: &str) -> anyhow::Result<(Map, Actions)> {
     let (_, (map, directions)) = all_consuming(terminated(
         separated_pair(parse_map, many1(newline), parse_directions),
         many0(newline),
@@ -265,43 +267,22 @@ fn main() -> anyhow::Result<()> {
     let file = fs::read_to_string(INPUT_FILE)
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
-    let (map, directions) = parse_file(&file)?;
+    let (map, actions) = parse_file(&file)?;
 
     println!("{map}");
 
-    println!("{directions:?}");
+    println!("{actions:?}");
 
-    //     .map(get_monkey)
-    //     .collect::<anyhow::Result<HashMap<MonkeyName, Monkey>>>()?;
-    // let mut monkeys = Monkeys { monkeys };
+    let you = You::new(&map);
 
-    // println!("{monkeys:?}");
+    let you = actions
+        .moves
+        .iter()
+        .fold(you, |you, action| you.act(action, &map));
 
-    // let Monkey::Expression(_, left, right) =
-    //     monkeys.monkeys.get(&MonkeyName::new("root")).context("Failed to get the root monkey")?.clone()
-    // else {
-    //     panic!("The root monkey didn't map to an expression")
-    // };
+    let password = you.password();
 
-    // let left_value = monkeys.get_value(&left)?;
-    // let right_value = monkeys.get_value(&right)?;
-    // println!("Left = {left_value:?}");
-    // println!("Right = {right_value:?}");
+    println!("The password is {password}");
 
-    // let difference = left_value - right_value;
-
-    // println!("Difference = {difference:?}");
-
-    // // difference = a + bx
-    // // We need a + bx = 0
-    // //   == bx = -a
-    // //   == x = -a/b
-
-    // let result = -difference.constant / difference.coefficient;
-
-    // println!("Result = {result:?}");
-
-    // Ok(())
-
-    todo!()
+    Ok(())
 }

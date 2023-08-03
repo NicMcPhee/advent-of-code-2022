@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
         "itertools",
+        "ncols",
+        "ndarray",
         "proptest"
     ],
     "rust-analyzer.linkedProjects": [
