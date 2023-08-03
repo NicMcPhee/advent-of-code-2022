@@ -88,6 +88,38 @@ impl Map {
         self.tiles.push_row(padded_row.view())?;
         Ok(())
     }
+
+    fn get_by_position(&self, position: Position) -> Option<&Tile> {
+        self.tiles.get((position.x, position.y))
+    }
+
+    fn forward_with_tile(&self, position: Position, direction: Direction) -> (&Tile, Position) {
+        position
+            .forward_one(direction)
+            .and_then(|new_position| Some((self.get_by_position(new_position)?, new_position)))
+            .unwrap_or((&Tile::Space, position))
+    }
+
+    fn forward(&self, mut position: Position, direction: Direction, num_steps: u32) -> Position {
+        for _ in 0..num_steps {
+            let (tile, new_position) = self.forward_with_tile(position, direction);
+            position = match tile {
+                Tile::Space => match self.wrap(position, direction) {
+                    Some(new_position) => new_position,
+                    None => return position,
+                },
+                Tile::Open => new_position,
+                Tile::Wall => return position,
+            }
+        }
+        position
+    }
+
+    fn wrap(&self, position: Position, direction: Direction) -> Option<Position> {
+        let (tile, new_position) = self.forward_with_tile(position, direction);
+        if position == new_position {}
+        todo!()
+    }
 }
 
 impl Display for Map {
