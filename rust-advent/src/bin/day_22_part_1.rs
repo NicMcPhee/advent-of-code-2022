@@ -166,6 +166,81 @@ struct Directions {
 }
 
 fn parse_directions(s: &str) -> IResult<&str, Directions> {
+enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl Direction {
+    const fn turn_left(self) -> Self {
+        match self {
+            Self::Left => Self::Down,
+            Self::Right => Self::Up,
+            Self::Up => Self::Left,
+            Self::Down => Self::Right,
+        }
+    }
+
+    const fn turn_right(self) -> Self {
+        match self {
+            Self::Left => Self::Up,
+            Self::Right => Self::Down,
+            Self::Up => Self::Right,
+            Self::Down => Self::Left,
+        }
+    }
+}
+
+struct You {
+    position: Position,
+    direction: Direction,
+}
+
+impl You {
+    fn new(map: &Map) -> Self {
+        let top_row = map.tiles.row(0);
+        #[allow(clippy::unwrap_used)]
+        let col = top_row.iter().position(|tile| tile == &Tile::Open).unwrap();
+        Self {
+            position: Position::new(0, col),
+            direction: Direction::Right,
+        }
+    }
+
+    fn act(self, mv: &Action, map: &Map) -> Self {
+        match mv {
+            Action::Left => self.turn_left(),
+            Action::Right => self.turn_right(),
+            Action::Forward(num_steps) => self.forward(*num_steps, map),
+        }
+    }
+
+    const fn turn_left(self) -> Self {
+        Self {
+            direction: self.direction.turn_left(),
+            ..self
+        }
+    }
+
+    const fn turn_right(self) -> Self {
+        Self {
+            direction: self.direction.turn_right(),
+            ..self
+        }
+    }
+
+    fn forward(self, num_steps: u32, map: &Map) -> Self {
+        let position = map.forward(self.position, self.direction, num_steps);
+        Self { position, ..self }
+    }
+
+    fn password(&self) -> usize {
+        todo!()
+    }
+}
+
     let (rest, moves) = many1(alt((
         map(i32, Move::Forward),
         map(tag("L"), |_| Move::Left),
