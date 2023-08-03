@@ -34,6 +34,41 @@ impl Display for Tile {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct Position {
+    x: usize,
+    y: usize,
+}
+
+impl Position {
+    const fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+
+    // TODO: Pass `Map` as an additional argument, wrap when necessary,
+    //   and return `Self` instead of `Option<Self>`.
+    fn forward_one(&self, direction: Direction) -> Option<Self> {
+        Some(match direction {
+            Direction::Left => Self {
+                x: self.x.checked_sub(1)?,
+                y: self.y,
+            },
+            Direction::Right => Self {
+                x: self.x + 1,
+                y: self.y,
+            },
+            Direction::Up => Self {
+                x: self.x,
+                y: self.y.checked_sub(1)?,
+            },
+            Direction::Down => Self {
+                x: self.x,
+                y: self.y + 1,
+            },
+        })
+    }
+}
+
 #[derive(Debug)]
 struct Map {
     tiles: Array2<Tile>,
