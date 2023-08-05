@@ -26,19 +26,6 @@ fn find_marker(s: &str) -> Result<usize> {
     Ok(pos + WINDOW_SIZE)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn third_example() -> Result<()> {
-        let input = "nppdvjthqldpwncqszvftbrmjlhg";
-        let result = find_marker(input)?;
-        assert_eq!(23, result);
-        Ok(())
-    }
-}
-
 fn all_unique(cs: &[u8]) -> bool {
     // This works because hashing on &T is converting to hashing
     // on T, so we end up hashing on the underlying `u8`s (and
@@ -61,4 +48,17 @@ fn main() -> Result<()> {
     println!("The marker was {marker}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn third_example() -> Result<()> {
+        let input = "nppdvjthqldpwncqszvftbrmjlhg";
+        let result = find_marker(input)?;
+        assert_eq!(23, result);
+        Ok(())
+    }
 }

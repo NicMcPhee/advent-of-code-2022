@@ -26,18 +26,6 @@ fn extract_stack_elements(line: &str) -> Vec<char> {
     (0..NUM_STACKS).map(|pos| line[1 + 4 * pos]).collect()
 }
 
-#[cfg(test)]
-mod extract_stack_elements_test {
-    use super::*;
-
-    #[test]
-    fn extract() {
-        let line = "[S] [J] [C]     [F] [C]     [D] [G]";
-        let result = extract_stack_elements(line);
-        assert_eq!(result, vec!['S', 'J', 'C', ' ', 'F', 'C', ' ', 'D', 'G']);
-    }
-}
-
 impl FromStr for Stacks {
     type Err = anyhow::Error;
 
@@ -202,4 +190,16 @@ fn main() -> Result<()> {
     println!("The top of the stacks is {}", final_state.tops_string()?);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod extract_stack_elements_test {
+    use super::*;
+
+    #[test]
+    fn extract() {
+        let line = "[S] [J] [C]     [F] [C]     [D] [G]";
+        let result = extract_stack_elements(line);
+        assert_eq!(result, vec!['S', 'J', 'C', ' ', 'F', 'C', ' ', 'D', 'G']);
+    }
 }

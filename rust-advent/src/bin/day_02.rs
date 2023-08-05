@@ -88,18 +88,6 @@ impl Rps {
     }
 }
 
-#[cfg(test)]
-mod beats_tests {
-    use super::*;
-
-    #[test]
-    fn beats_check() {
-        assert_eq!(Rps::Rock.beats(), Rps::Scissors);
-        assert_eq!(Rps::Paper.beats(), Rps::Rock);
-        assert_eq!(Rps::Scissors.beats(), Rps::Paper);
-    }
-}
-
 // If we don't derive Copy/Clone, then Clippy recommends passing
 // a reference to `our_move` up above. I'd like to understand
 // that a bit better.
@@ -120,18 +108,6 @@ impl FromStr for Outcome {
             "Z" => Ok(Self::Win),
             _ => bail!("Illegal character '{c}' for Outcome"),
         }
-    }
-}
-
-#[cfg(test)]
-mod score_tests {
-    use super::*;
-
-    #[test]
-    fn we_play_rock() {
-        assert_eq!(3, Rps::Rock.game_score(Rps::Rock));
-        assert_eq!(0, Rps::Rock.game_score(Rps::Paper));
-        assert_eq!(6, Rps::Rock.game_score(Rps::Scissors));
     }
 }
 
@@ -162,4 +138,28 @@ fn process_game(line: &str) -> Result<u32> {
     let our_move = their_move.our_move(outcome);
 
     Ok(our_move.game_score(their_move) + (our_move as u32))
+}
+
+#[cfg(test)]
+mod beats_tests {
+    use super::*;
+
+    #[test]
+    fn beats_check() {
+        assert_eq!(Rps::Rock.beats(), Rps::Scissors);
+        assert_eq!(Rps::Paper.beats(), Rps::Rock);
+        assert_eq!(Rps::Scissors.beats(), Rps::Paper);
+    }
+}
+
+#[cfg(test)]
+mod score_tests {
+    use super::*;
+
+    #[test]
+    fn we_play_rock() {
+        assert_eq!(3, Rps::Rock.game_score(Rps::Rock));
+        assert_eq!(0, Rps::Rock.game_score(Rps::Paper));
+        assert_eq!(6, Rps::Rock.game_score(Rps::Scissors));
+    }
 }

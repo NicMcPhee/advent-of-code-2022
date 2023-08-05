@@ -3,12 +3,10 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashSet, fs, iter::Cycle, ops::Not, vec::IntoIter, fmt::Display};
-
+use anyhow::{bail, Context};
+use std::{collections::HashSet, fmt::Display, fs, iter::Cycle, ops::Not, vec::IntoIter};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-
-use anyhow::{Context, bail};
 
 #[derive(Clone)]
 enum JetDirection {
@@ -229,7 +227,8 @@ impl Chamber {
         loop {
             rock.shift(
                 #[allow(clippy::expect_used)]
-                &self.jet_directions
+                &self
+                    .jet_directions
                     .next()
                     .expect("We should never reach the end of jet directions because of `cycle`"),
                 &self.occupied,
