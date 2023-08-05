@@ -34,72 +34,78 @@ impl Display for Tile {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct Position {
-    x: usize,
-    y: usize,
+    row: usize,
+    col: usize,
 }
 
 impl Position {
-    const fn new(x: usize, y: usize) -> Self {
-        Self { x, y }
+    const fn new(row: usize, col: usize) -> Self {
+        Self { row, col }
     }
 
-    // TODO: Pass `Map` as an additional argument, wrap when necessary,
-    //   and return `Self` instead of `Option<Self>`.
-    fn forward_one(&self, direction: Direction, max_x: usize, max_y: usize) -> Self {
-        let mut x = self.x;
-        let mut y = self.y;
+    fn forward_one(&self, direction: Direction, max_col: usize, max_row: usize) -> Self {
+        let mut col: usize = self.col;
+        let mut row: usize = self.row;
 
         match direction {
-            Direction::Left => x = x.checked_sub(1).unwrap_or(max_x - 1),
-            Direction::Right => x = (x + 1) % max_x,
-            Direction::Up => y = y.checked_sub(1).unwrap_or(max_y - 1),
-            Direction::Down => y = (y + 1) % max_y,
+            Direction::Left => col = col.checked_sub(1).unwrap_or(max_col - 1),
+            Direction::Right => col = (col + 1) % max_col,
+            Direction::Up => row = row.checked_sub(1).unwrap_or(max_row - 1),
+            Direction::Down => row = (row + 1) % max_row,
         };
-        Self { x, y }
+        Self { row, col }
     }
 }
 
 #[derive(Debug)]
 struct Map {
     tiles: Array2<Tile>,
-    max_x: usize,
-    max_y: usize,
+    max_col: usize,
+    max_row: usize,
 }
 
 impl Map {
     fn empty(num_columns: usize) -> Self {
         Self {
             tiles: Array::from_elem((0, num_columns), Tile::Space),
-            max_x: num_columns,
-            max_y: 0,
+            max_col: num_columns,
+            max_row: 0,
         }
     }
 
     fn add_row(&mut self, row: &[Tile]) -> anyhow::Result<()> {
-        let num_spaces = self.tiles.ncols() - row.len();
+        let num_spaces = self.tiles.ncols().checked_sub(row.len()).with_context(|| {
+            format!(
+                "Num of columns in map was {} and length of row was {}.",
+                self.tiles.ncols(),
+                row.len()
+            )
+        })?;
         let padding_spaces = repeat_n(Tile::Space, num_spaces).collect::<Vec<_>>();
         let padded_row = concatenate![Axis(0), row, padding_spaces];
         self.tiles.push_row(padded_row.view())?;
-        self.max_y += 1;
+        self.max_row += 1;
         Ok(())
     }
 
     fn get_by_position(&self, position: Position) -> Tile {
         // `new_position` should always be a legal position on the map, so `get_by_position` should always succeed.
         #[allow(clippy::unwrap_used)]
-        *self.tiles.get((position.x, position.y)).unwrap()
+        // println!("Position is {position:?}.");
+        *self.tiles.get((position.row, position.col)).unwrap()
     }
 
     fn forward_one(&self, position: &Position, direction: Direction) -> Position {
-        position.forward_one(direction, self.max_x, self.max_y)
+        position.forward_one(direction, self.max_col, self.max_row)
     }
 
     fn forward(&self, mut position: Position, direction: Direction, num_steps: u32) -> Position {
         for _ in 0..num_steps {
             let new_position = self.forward_one(&position, direction);
             let tile = self.get_by_position(new_position);
+            // println!("New position is {new_position:?} and tile is {tile:?}.");
             position = match tile {
                 Tile::Space => match self.wrap(position, direction) {
                     Some(new_position) => new_position,
@@ -121,8 +127,11 @@ impl Map {
     fn wrap(&self, position: Position, direction: Direction) -> Option<Position> {
         let new_position = self.forward_one(&position, direction);
         let tile = self.get_by_position(new_position);
-        if position == new_position {}
-        todo!()
+        match tile {
+            Tile::Space => self.wrap(new_position, direction),
+            Tile::Open => Some(new_position),
+            Tile::Wall => None,
+        }
     }
 }
 
@@ -170,12 +179,12 @@ struct Actions {
     moves: Vec<Action>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum Direction {
-    Left,
     Right,
-    Up,
     Down,
+    Left,
+    Up,
 }
 
 impl Direction {
@@ -198,6 +207,7 @@ impl Direction {
     }
 }
 
+#[derive(Debug)]
 struct You {
     position: Position,
     direction: Direction,
@@ -215,6 +225,7 @@ impl You {
     }
 
     fn act(self, mv: &Action, map: &Map) -> Self {
+        // println!("Taking action {mv:?}.");
         match mv {
             Action::Left => self.turn_left(),
             Action::Right => self.turn_right(),
@@ -241,8 +252,20 @@ impl You {
         Self { position, ..self }
     }
 
-    fn password(&self) -> usize {
-        todo!()
+    const fn row(&self) -> usize {
+        self.position.row + 1
+    }
+
+    const fn col(&self) -> usize {
+        self.position.col + 1
+    }
+
+    const fn facing(&self) -> usize {
+        self.direction as usize
+    }
+
+    const fn password(&self) -> usize {
+        1000 * self.row() + 4 * self.col() + self.facing()
     }
 }
 
@@ -265,7 +288,7 @@ fn parse_file(contents: &str) -> anyhow::Result<(Map, Actions)> {
     Ok((map, directions))
 }
 
-static INPUT_FILE: &str = "../inputs/day_22_test.input";
+static INPUT_FILE: &str = "../inputs/day_22.input";
 
 fn main() -> anyhow::Result<()> {
     let file = fs::read_to_string(INPUT_FILE)
@@ -279,12 +302,14 @@ fn main() -> anyhow::Result<()> {
 
     let you = You::new(&map);
 
-    let you = actions
-        .moves
-        .iter()
-        .fold(you, |you, action| you.act(action, &map));
+    let you = actions.moves.iter().fold(you, |you, action| {
+        // println!("{you:?}");
+        you.act(action, &map)
+    });
 
     let password = you.password();
+
+    println!("The value of `You` is {you:?}.");
 
     println!("The password is {password}");
 
