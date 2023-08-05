@@ -34,6 +34,8 @@ impl Display for Tile {
     }
 }
 
+const FACE_SIZE: usize = 50;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct Position {
     row: usize,
@@ -43,6 +45,68 @@ struct Position {
 impl Position {
     const fn new(row: usize, col: usize) -> Self {
         Self { row, col }
+    }
+
+    // Faces are 50x50.
+    // Face 1 is first 50 rows, last 50 cols.
+    // Face 2 is first 50 rows, middle 50 cols.
+    // Face 3 is second 50 rows, second 50 cols.
+    // Face 4 is third 50 rows, second 50 cols.
+    // Face 5 is third 50 rows, first 50 cols.
+    // Face 6 is fourth 50 rows, first 50 cols.
+    fn to_face_position(&self) -> FacePosition {
+        let face = Face::from_position(self);
+        FacePosition {
+            row: self.row % FACE_SIZE,
+            col: self.col % FACE_SIZE,
+            face,
+        }
+    }
+}
+
+enum Face {
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+}
+
+impl Face {
+    fn from_position(position: &Position) -> Self {
+        match (position.row / 50, position.col / 50) {
+            (0, 2) => Face::One,   // Face 1
+            (0, 1) => Face::Two,   // Face 2
+            (1, 1) => Face::Three, // Face 3
+            (2, 1) => Face::Four,  // Face 4
+            (2, 0) => Face::Five,  // Face 5
+            (3, 0) => Face::Six,   // Face 6
+            _ => panic!("Illegal position {position:?}"),
+        }
+    }
+
+    fn offset(&self) -> (usize, usize) {
+        match self {
+            Face::One => (0, 2),
+            Face::Two => (0, 1),
+            Face::Three => (1, 1),
+            Face::Four => (2, 1),
+            Face::Five => (2, 0),
+            Face::Six => (3, 0),
+        }
+    }
+}
+
+struct FacePosition {
+    row: usize,
+    col: usize,
+    face: Face,
+}
+
+impl FacePosition {
+    const fn new(row: usize, col: usize, face: Face) -> Self {
+        Self { row, col, face }
     }
 
     fn forward_one(&self, direction: Direction, max_col: usize, max_row: usize) -> Self {
@@ -55,7 +119,16 @@ impl Position {
             Direction::Up => row = row.checked_sub(1).unwrap_or(max_row - 1),
             Direction::Down => row = (row + 1) % max_row,
         };
-        Self { row, col }
+        // Self { row, col }
+        todo!()
+    }
+
+    fn to_position(&self) -> Position {
+        let (row_offset, col_offset) = self.face.offset();
+        Position {
+            row: self.row + FACE_SIZE * row_offset,
+            col: self.col + FACE_SIZE * col_offset,
+        }
     }
 }
 
