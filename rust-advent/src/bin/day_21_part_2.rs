@@ -2,7 +2,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
-#![allow(dead_code)]
 
 use anyhow::Context;
 use nom::{
