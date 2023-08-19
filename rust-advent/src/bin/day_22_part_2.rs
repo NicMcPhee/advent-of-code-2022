@@ -388,3 +388,153 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[allow(clippy::items_after_test_module)]
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn one() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::One, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::One, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::One, Direction::Right).forward_one(),
+            FacePosition::new(39, 49, Face::Four, Direction::Left)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::One, Direction::Left).forward_one(),
+            FacePosition::new(10, 49, Face::Two, Direction::Left)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::One, Direction::Up).forward_one(),
+            FacePosition::new(49, 20, Face::Six, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::One, Direction::Down).forward_one(),
+            FacePosition::new(20, 49, Face::Three, Direction::Left)
+        );
+    }
+
+    #[test]
+    fn two() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::Two, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::Two, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::Two, Direction::Right).forward_one(),
+            FacePosition::new(10, 0, Face::One, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::Two, Direction::Left).forward_one(),
+            FacePosition::new(39, 0, Face::Five, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::Two, Direction::Up).forward_one(),
+            FacePosition::new(20, 0, Face::Six, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::Two, Direction::Down).forward_one(),
+            FacePosition::new(0, 20, Face::Three, Direction::Down)
+        );
+    }
+
+    #[test]
+    fn three() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::Three, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::Three, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::Three, Direction::Right).forward_one(),
+            FacePosition::new(49, 10, Face::One, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::Three, Direction::Left).forward_one(),
+            FacePosition::new(0, 10, Face::Five, Direction::Down)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::Three, Direction::Up).forward_one(),
+            FacePosition::new(49, 20, Face::Two, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::Three, Direction::Down).forward_one(),
+            FacePosition::new(0, 49, Face::Four, Direction::Down)
+        );
+    }
+
+    #[test]
+    fn four() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::Four, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::Four, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::Four, Direction::Right).forward_one(),
+            FacePosition::new(39, 49, Face::One, Direction::Left)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::Four, Direction::Left).forward_one(),
+            FacePosition::new(10, 49, Face::Five, Direction::Left)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::Four, Direction::Up).forward_one(),
+            FacePosition::new(49, 20, Face::Three, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::Four, Direction::Down).forward_one(),
+            FacePosition::new(20, 49, Face::Six, Direction::Left)
+        );
+    }
+
+    #[test]
+    fn five() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::Five, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::Five, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::Five, Direction::Right).forward_one(),
+            FacePosition::new(10, 0, Face::Four, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::Five, Direction::Left).forward_one(),
+            FacePosition::new(39, 0, Face::Two, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::Five, Direction::Up).forward_one(),
+            FacePosition::new(20, 0, Face::Three, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::Five, Direction::Down).forward_one(),
+            FacePosition::new(0, 20, Face::Six, Direction::Down)
+        );
+    }
+
+    #[test]
+    fn six() {
+        assert_eq!(
+            FacePosition::new(10, 20, Face::Six, Direction::Right).forward_one(),
+            FacePosition::new(10, 21, Face::Six, Direction::Right)
+        );
+        assert_eq!(
+            FacePosition::new(10, 49, Face::Six, Direction::Right).forward_one(),
+            FacePosition::new(49, 10, Face::Four, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(10, 0, Face::Six, Direction::Left).forward_one(),
+            FacePosition::new(0, 10, Face::Two, Direction::Down)
+        );
+        assert_eq!(
+            FacePosition::new(0, 20, Face::Six, Direction::Up).forward_one(),
+            FacePosition::new(49, 20, Face::Five, Direction::Up)
+        );
+        assert_eq!(
+            FacePosition::new(49, 20, Face::Six, Direction::Down).forward_one(),
+            FacePosition::new(0, 20, Face::One, Direction::Down)
+        );
+    }
+}
