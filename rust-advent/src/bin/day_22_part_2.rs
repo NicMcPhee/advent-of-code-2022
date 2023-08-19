@@ -40,11 +40,16 @@ const FACE_SIZE: usize = 50;
 struct Position {
     row: usize,
     col: usize,
+    direction: Direction,
 }
 
 impl Position {
-    const fn new(row: usize, col: usize) -> Self {
-        Self { row, col }
+    const fn new(row: usize, col: usize, direction: Direction) -> Self {
+        Self {
+            row,
+            col,
+            direction,
+        }
     }
 
     // Faces are 50x50.
@@ -54,16 +59,18 @@ impl Position {
     // Face 4 is third 50 rows, second 50 cols.
     // Face 5 is third 50 rows, first 50 cols.
     // Face 6 is fourth 50 rows, first 50 cols.
-    fn to_face_position(&self) -> FacePosition {
-        let face = Face::from_position(self);
-        FacePosition {
-            row: self.row % FACE_SIZE,
-            col: self.col % FACE_SIZE,
+    fn to_face_position(self) -> FacePosition {
+        let face = Face::from_position(&self);
+        FacePosition::new(
+            self.row % FACE_SIZE,
+            self.col % FACE_SIZE,
             face,
-        }
+            self.direction,
+        )
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Face {
     One,
     Two,
@@ -98,36 +105,38 @@ impl Face {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 struct FacePosition {
     row: usize,
     col: usize,
     face: Face,
+    direction: Direction,
 }
 
 impl FacePosition {
-    const fn new(row: usize, col: usize, face: Face) -> Self {
-        Self { row, col, face }
+    const fn new(row: usize, col: usize, face: Face, direction: Direction) -> Self {
+        Self {
+            row,
+            col,
+            face,
+            direction,
+    }
     }
 
-    fn forward_one(&self, direction: Direction, max_col: usize, max_row: usize) -> Self {
-        let mut col: usize = self.col;
-        let mut row: usize = self.row;
+    fn forward_one(&self) -> Self {
+        // And now we implement a version of MizardX@Twitch's approach!
 
-        match direction {
-            Direction::Left => col = col.checked_sub(1).unwrap_or(max_col - 1),
-            Direction::Right => col = (col + 1) % max_col,
-            Direction::Up => row = row.checked_sub(1).unwrap_or(max_row - 1),
-            Direction::Down => row = (row + 1) % max_row,
-        };
-        // Self { row, col }
+        // ...
+
         todo!()
     }
 
-    fn to_position(&self) -> Position {
+    const fn to_position(&self) -> Position {
         let (row_offset, col_offset) = self.face.offset();
         Position {
             row: self.row + FACE_SIZE * row_offset,
             col: self.col + FACE_SIZE * col_offset,
+            direction: self.direction,
         }
     }
 }
@@ -170,13 +179,13 @@ impl Map {
         *self.tiles.get((position.row, position.col)).unwrap()
     }
 
-    fn forward_one(&self, position: &Position, direction: Direction) -> Position {
-        position.forward_one(direction, self.max_col, self.max_row)
+    fn forward_one(position: &Position) -> Position {
+        position.to_face_position().forward_one().to_position()
     }
 
     fn forward(&self, mut position: Position, direction: Direction, num_steps: u32) -> Position {
         for _ in 0..num_steps {
-            let new_position = self.forward_one(&position, direction);
+            let new_position = Self::forward_one(&position);
             let tile = self.get_by_position(new_position);
             // println!("New position is {new_position:?} and tile is {tile:?}.");
             position = match tile {
@@ -252,7 +261,7 @@ struct Actions {
     moves: Vec<Action>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Direction {
     Right,
     Down,
@@ -292,7 +301,7 @@ impl You {
         #[allow(clippy::unwrap_used)]
         let col = top_row.iter().position(|tile| tile == &Tile::Open).unwrap();
         Self {
-            position: Position::new(0, col),
+            position: Position::new(0, col, Direction::Right),
             direction: Direction::Right,
         }
     }
