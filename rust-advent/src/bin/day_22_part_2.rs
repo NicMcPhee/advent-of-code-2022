@@ -83,24 +83,24 @@ enum Face {
 impl Face {
     fn from_position(position: &Position) -> Self {
         match (position.row / 50, position.col / 50) {
-            (0, 2) => Face::One,   // Face 1
-            (0, 1) => Face::Two,   // Face 2
-            (1, 1) => Face::Three, // Face 3
-            (2, 1) => Face::Four,  // Face 4
-            (2, 0) => Face::Five,  // Face 5
-            (3, 0) => Face::Six,   // Face 6
+            (0, 2) => Self::One,   // Face 1
+            (0, 1) => Self::Two,   // Face 2
+            (1, 1) => Self::Three, // Face 3
+            (2, 1) => Self::Four,  // Face 4
+            (2, 0) => Self::Five,  // Face 5
+            (3, 0) => Self::Six,   // Face 6
             _ => panic!("Illegal position {position:?}"),
         }
     }
 
-    fn offset(&self) -> (usize, usize) {
+    const fn offset(&self) -> (usize, usize) {
         match self {
-            Face::One => (0, 2),
-            Face::Two => (0, 1),
-            Face::Three => (1, 1),
-            Face::Four => (2, 1),
-            Face::Five => (2, 0),
-            Face::Six => (3, 0),
+            Self::One => (0, 2),
+            Self::Two => (0, 1),
+            Self::Three => (1, 1),
+            Self::Four => (2, 1),
+            Self::Five => (2, 0),
+            Self::Six => (3, 0),
         }
     }
 }
@@ -120,7 +120,7 @@ impl FacePosition {
             col,
             face,
             direction,
-    }
+        }
     }
 
     fn forward_one(&self) -> Self {
@@ -144,16 +144,12 @@ impl FacePosition {
 #[derive(Debug)]
 struct Map {
     tiles: Array2<Tile>,
-    max_col: usize,
-    max_row: usize,
 }
 
 impl Map {
     fn empty(num_columns: usize) -> Self {
         Self {
             tiles: Array::from_elem((0, num_columns), Tile::Space),
-            max_col: num_columns,
-            max_row: 0,
         }
     }
 
@@ -168,12 +164,12 @@ impl Map {
         let padding_spaces = repeat_n(Tile::Space, num_spaces).collect::<Vec<_>>();
         let padded_row = concatenate![Axis(0), row, padding_spaces];
         self.tiles.push_row(padded_row.view())?;
-        self.max_row += 1;
         Ok(())
     }
 
     fn get_by_position(&self, position: Position) -> Tile {
-        // `new_position` should always be a legal position on the map, so `get_by_position` should always succeed.
+        // `position` should always be a legal position on the map, so the call
+        // to `get()` should always succeed.
         #[allow(clippy::unwrap_used)]
         // println!("Position is {position:?}.");
         *self.tiles.get((position.row, position.col)).unwrap()
@@ -189,31 +185,12 @@ impl Map {
             let tile = self.get_by_position(new_position);
             // println!("New position is {new_position:?} and tile is {tile:?}.");
             position = match tile {
-                Tile::Space => match self.wrap(position, direction) {
-                    Some(new_position) => new_position,
-                    None => return position,
-                },
+                Tile::Space => unreachable!("We should never get a space tile. position = {position:?}, direction = {direction:?}, new_position = {new_position:?}, tile is '{tile}'."),
                 Tile::Open => new_position,
                 Tile::Wall => return position,
             }
         }
         position
-    }
-
-    // This is called if we've run into a `Tile::Space`, which means we need to keep
-    // going in the current direction (wrapping around the map edge is handled by
-    // Position::forward_one) until we find a non-space tile. If that tile is a
-    // `Tile::Wall`, then we can't wrap in that direction and we return `None`. If
-    // it's a `Tile::Open` than that's the `new_position` that we've moved to and
-    // we want to return that.
-    fn wrap(&self, position: Position, direction: Direction) -> Option<Position> {
-        let new_position = self.forward_one(&position, direction);
-        let tile = self.get_by_position(new_position);
-        match tile {
-            Tile::Space => self.wrap(new_position, direction),
-            Tile::Open => Some(new_position),
-            Tile::Wall => None,
-        }
     }
 }
 
@@ -237,6 +214,9 @@ fn parse_map_row(s: &str) -> IResult<&str, Vec<Tile>> {
     )))(s)
 }
 
+// If errors occur here, it's because the input file doesn't have the
+// specified format, so we'll just call `unwrap()` and panic if things
+// don't work out.
 #[allow(clippy::unwrap_used)]
 fn parse_map(s: &str) -> IResult<&str, Map> {
     let (rest, rows) = separated_list1(newline, parse_map_row)(s)?;
@@ -298,6 +278,9 @@ struct You {
 impl You {
     fn new(map: &Map) -> Self {
         let top_row = map.tiles.row(0);
+        // The call to `Position` would only return `None` if there were no `Open` tiles
+        // on the top row. That shouldn't happen on legal maps, so we'll just `unwrap()`
+        // and panic if things aren't legal.
         #[allow(clippy::unwrap_used)]
         let col = top_row.iter().position(|tile| tile == &Tile::Open).unwrap();
         Self {
@@ -378,9 +361,9 @@ fn main() -> anyhow::Result<()> {
 
     let (map, actions) = parse_file(&file)?;
 
-    println!("{map}");
+    // println!("{map}");
 
-    println!("{actions:?}");
+    // println!("{actions:?}");
 
     let you = You::new(&map);
 
@@ -398,7 +381,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod test {
     use super::*;
