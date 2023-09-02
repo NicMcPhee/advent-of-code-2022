@@ -128,7 +128,7 @@ enum Direction {
 }
 
 impl Direction {
-    fn cycle() -> std::iter::Cycle<std::array::IntoIter<Self, 4>> {
+    fn cycle() -> impl Iterator<Item = Self> {
         [Self::North, Self::South, Self::West, Self::East]
             .into_iter()
             .cycle()
