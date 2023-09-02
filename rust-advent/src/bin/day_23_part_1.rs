@@ -17,7 +17,7 @@ struct Position {
 }
 
 impl Position {
-    fn shift(self, direction: &Direction) -> Position {
+    fn shift(self, direction: Direction) -> Self {
         match direction {
             Direction::North => self + (0, -1),
             Direction::South => self + (0, 1),
@@ -28,10 +28,10 @@ impl Position {
 }
 
 impl Add<(isize, isize)> for Position {
-    type Output = Position;
+    type Output = Self;
 
     fn add(self, (delta_row, delta_col): (isize, isize)) -> Self::Output {
-        Position {
+        Self {
             row: self.row + delta_row,
             col: self.col + delta_col,
         }
@@ -65,7 +65,7 @@ impl Elf {
         true
     }
 
-    fn can_move(&self, board: &Board, direction: &Direction) -> bool {
+    fn can_move(&self, board: &Board, direction: Direction) -> bool {
         todo!()
     }
 
@@ -77,8 +77,8 @@ impl Elf {
             return self.position;
         }
         for direction in directions {
-            if self.can_move(board, direction) {
-                return self.position.shift(direction);
+            if self.can_move(board, *direction) {
+                return self.position.shift(*direction);
             }
         }
         self.position
@@ -97,6 +97,7 @@ impl Board {
 }
 
 fn parse_map_row(row: isize, s: &str) -> Vec<Elf> {
+    #[allow(clippy::unwrap_used)]
     s.chars()
         .enumerate()
         .filter_map(|(col, c)| match c {
@@ -108,8 +109,8 @@ fn parse_map_row(row: isize, s: &str) -> Vec<Elf> {
         .collect()
 }
 
-// #[allow(clippy::unwrap_used)]
 fn parse_map(file_contents: &str) -> Board {
+    #[allow(clippy::unwrap_used)]
     let elves: HashSet<Elf> = file_contents
         .lines()
         .enumerate()
@@ -126,10 +127,18 @@ enum Direction {
     East,
 }
 
-fn one_round(board: Board, directions: &Vec<Direction>) -> Board {
+impl Direction {
+    fn cycle() -> std::iter::Cycle<std::array::IntoIter<Self, 4>> {
+        [Self::North, Self::South, Self::West, Self::East]
+            .into_iter()
+            .cycle()
+    }
+}
+
+fn one_round(board: &Board, directions: &Vec<Direction>) -> Board {
     let mut proposals: HashMap<Position, Vec<Elf>> = HashMap::new();
     for elf in &board.elves {
-        let proposed_move = elf.propose_move(&board, directions);
+        let proposed_move = elf.propose_move(board, directions);
         let entry = proposals.entry(proposed_move);
         entry.or_default().push(*elf);
     }
@@ -148,23 +157,17 @@ fn one_round(board: Board, directions: &Vec<Direction>) -> Board {
 }
 
 fn disperse_elves(mut board: Board, num_rounds: usize) -> Board {
-    let mut directions_cycle = [
-        Direction::North,
-        Direction::South,
-        Direction::West,
-        Direction::East,
-    ]
-    .into_iter()
-    .cycle();
+    let mut directions_cycle = Direction::cycle();
+
     for _ in 0..num_rounds {
         let directions = directions_cycle.by_ref().take(4).collect();
         directions_cycle.next();
-        board = one_round(board, &directions);
+        board = one_round(&board, &directions);
     }
     board
 }
 
-fn empty_ground_tiles(board: Board) -> usize {
+fn empty_ground_tiles(board: &Board) -> usize {
     todo!()
 }
 
@@ -179,31 +182,15 @@ fn main() -> anyhow::Result<()> {
     let board = parse_map(&file);
     println!("{board:?}");
 
-    let board = one_round(
-        board,
-        &vec![
-            Direction::North,
-            Direction::South,
-            Direction::West,
-            Direction::East,
-        ],
-    );
+    let board = one_round(&board, &Direction::cycle().collect());
     println!("{board:?}");
 
-    let board = one_round(
-        board,
-        &vec![
-            Direction::South,
-            Direction::West,
-            Direction::East,
-            Direction::North,
-        ],
-    );
+    let board = one_round(&board, &Direction::cycle().skip(1).collect());
     println!("{board:?}");
 
     let final_elves = disperse_elves(board, NUM_ROUNDS);
 
-    let result = empty_ground_tiles(final_elves);
+    let result = empty_ground_tiles(&final_elves);
 
     println!("The result = {result}.");
 
