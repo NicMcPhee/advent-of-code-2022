@@ -209,8 +209,11 @@ fn main() -> anyhow::Result<()> {
 
     // println!("{monkeys:?}");
 
-    let Monkey::Expression(_, left, right) =
-        monkeys.monkeys.get(&MonkeyName::new("root")).context("Failed to get the root monkey")?.clone()
+    let Monkey::Expression(_, left, right) = monkeys
+        .monkeys
+        .get(&MonkeyName::new("root"))
+        .context("Failed to get the root monkey")?
+        .clone()
     else {
         panic!("The root monkey didn't map to an expression")
     };
