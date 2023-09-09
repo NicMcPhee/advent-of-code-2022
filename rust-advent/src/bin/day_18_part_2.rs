@@ -3,14 +3,13 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::Context;
 use std::{
     collections::HashSet,
     fs,
     ops::{Add, Not, Sub},
     str::FromStr,
 };
-
-use anyhow::Context;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 struct Cube {

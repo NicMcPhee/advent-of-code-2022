@@ -3,14 +3,13 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::{bail, Context, Result};
 use std::{
     collections::HashMap,
     fs::{self},
     path::PathBuf,
     str::FromStr,
 };
-
-use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_07.input";
 

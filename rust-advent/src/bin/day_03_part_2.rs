@@ -3,10 +3,9 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashSet, fs, str::Lines};
-
 use anyhow::{bail, Context, Result};
 use itertools::{Chunk, Itertools};
+use std::{collections::HashSet, fs, str::Lines};
 
 static INPUT_FILE: &str = "../inputs/day_03.input";
 

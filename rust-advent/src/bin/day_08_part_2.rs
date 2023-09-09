@@ -3,14 +3,13 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::{Context, Result};
+use rayon::prelude::{ParallelBridge, ParallelIterator};
 use std::{
     fs::{self},
     iter::repeat,
     str::FromStr,
 };
-
-use anyhow::{Context, Result};
-use rayon::prelude::{ParallelBridge, ParallelIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 

@@ -3,9 +3,8 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::fs;
-
 use anyhow::{bail, Context, Result};
+use std::fs;
 
 static INPUT_FILE: &str = "../inputs/day_01.input";
 

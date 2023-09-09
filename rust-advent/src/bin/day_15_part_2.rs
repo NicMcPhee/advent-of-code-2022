@@ -3,11 +3,10 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{fs, ops::RangeInclusive};
-
 use anyhow::{bail, Context};
 use range_union_find::RangeUnionFind;
 use regex::{Captures, Regex};
+use std::{fs, ops::RangeInclusive};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 struct Point {

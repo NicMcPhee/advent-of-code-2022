@@ -3,15 +3,13 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::{Context, Result};
+use itertools::Itertools;
 use nom::{
     bytes::complete::tag, character::complete::char, combinator::map, multi::separated_list0,
     sequence::separated_pair, IResult,
 };
 use std::{collections::HashSet, fmt::Display, fs, ops::RangeInclusive};
-
-use anyhow::{Context, Result};
-
-use itertools::Itertools;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 struct Point {

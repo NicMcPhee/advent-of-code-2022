@@ -3,19 +3,17 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::char;
-use nom::character::complete::newline;
-use nom::character::complete::u8;
-use nom::combinator::map;
-use nom::multi::separated_list0;
-use nom::sequence::separated_pair;
-use nom::{sequence::delimited, IResult};
-use std::cmp::Ordering;
-use std::fs;
-
 use anyhow::{Context, Result};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{char, newline, u8},
+    combinator::map,
+    multi::separated_list0,
+    sequence::{delimited, separated_pair},
+    IResult,
+};
+use std::{cmp::Ordering, fs};
 
 #[derive(Debug, PartialEq)]
 enum Packet {

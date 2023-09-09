@@ -3,14 +3,13 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::{bail, Context, Result};
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fs::{self},
     str::FromStr,
 };
-
-use anyhow::{bail, Context, Result};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 

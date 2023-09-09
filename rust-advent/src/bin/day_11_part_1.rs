@@ -3,12 +3,11 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::{bail, Context, Result};
 use std::{
     fs, mem,
     str::{FromStr, Lines},
 };
-
-use anyhow::{bail, Context, Result};
 
 static INPUT_FILE: &str = "../inputs/day_11.input";
 

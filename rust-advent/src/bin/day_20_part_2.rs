@@ -3,9 +3,8 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::fs;
-
 use anyhow::Context;
+use std::fs;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct Element {

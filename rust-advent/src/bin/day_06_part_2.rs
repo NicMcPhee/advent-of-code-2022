@@ -3,9 +3,8 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
-use std::{collections::HashSet, fs};
-
 use anyhow::{Context, Result};
+use std::{collections::HashSet, fs};
 
 static INPUT_FILE: &str = "../inputs/day_06.input";
 

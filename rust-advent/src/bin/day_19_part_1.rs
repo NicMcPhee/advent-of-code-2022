@@ -3,6 +3,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 
+use anyhow::Context;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{
@@ -11,8 +12,6 @@ use std::{
     ops::{Add, Sub},
     str::FromStr,
 };
-
-use anyhow::Context;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 struct Ore;
