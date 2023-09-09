@@ -4,7 +4,9 @@
 #![warn(clippy::expect_used)]
 
 use anyhow::Context;
-use std::ops::Add;
+use itertools::Itertools;
+use std::fmt::Display;
+use std::ops::{Add, Not};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -19,10 +21,10 @@ struct Position {
 impl Position {
     fn shift(self, direction: Direction) -> Self {
         match direction {
-            Direction::North => self + (0, -1),
-            Direction::South => self + (0, 1),
-            Direction::West => self + (-1, 0),
-            Direction::East => self + (1, 0),
+            Direction::North => self + (-1, 0),
+            Direction::South => self + (1, 0),
+            Direction::West => self + (0, -1),
+            Direction::East => self + (0, 1),
         }
     }
 }
@@ -66,7 +68,11 @@ impl Elf {
     }
 
     fn can_move(&self, board: &Board, direction: Direction) -> bool {
-        todo!()
+        direction
+            .offsets()
+            .into_iter()
+            .any(|offset| board.occupied(self.position + offset))
+            .not()
     }
 
     // If we don't propose moving, we return our current position as the proposal
@@ -92,7 +98,53 @@ struct Board {
 
 impl Board {
     fn occupied(&self, position: Position) -> bool {
-        todo!()
+        self.elves.contains(&Elf { position })
+    }
+
+    #[allow(clippy::unwrap_used)]
+    fn row_bounds(&self) -> (isize, isize) {
+        self.elves
+            .iter()
+            .map(|elf| elf.position.row)
+            .minmax()
+            .into_option()
+            .unwrap()
+    }
+
+    #[allow(clippy::unwrap_used)]
+    fn col_bounds(&self) -> (isize, isize) {
+        self.elves
+            .iter()
+            .map(|elf| elf.position.col)
+            .minmax()
+            .into_option()
+            .unwrap()
+    }
+
+    #[allow(clippy::unwrap_used)]
+    fn empty_ground_tiles(&self) -> usize {
+        let (min_row, max_row) = self.row_bounds();
+        let (min_col, max_col) = self.col_bounds();
+        let area = usize::try_from((max_row - min_row + 1) * (max_col - min_col + 1)).unwrap();
+        area - self.elves.len()
+    }
+}
+
+impl Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (min_row, max_row) = self.row_bounds();
+        let (min_col, max_col) = self.col_bounds();
+        for row in min_row..=max_row {
+            for col in min_col..=max_col {
+                if self.occupied(Position { row, col }) {
+                    write!(f, "#")?;
+                } else {
+                    write!(f, ".")?;
+                }
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -105,7 +157,7 @@ fn parse_map_row(row: isize, s: &str) -> Vec<Elf> {
             _ => None,
         })
         // .filter(|(col, c)| *c == '#')
-        // .map(|(col, c)| Elf::new(row, col))
+        // .map(|(col, c)| Elf::new(row, isize::try_from(col).unwrap()))
         .collect()
 }
 
@@ -133,15 +185,30 @@ impl Direction {
             .into_iter()
             .cycle()
     }
+
+    /// Generate the three offsets in the specified direction, i.e.,
+    /// NW, N, and NE if the direction is North.
+    const fn offsets(self) -> [(isize, isize); 3] {
+        match self {
+            Self::North => [(-1, -1), (-1, 0), (-1, 1)],
+            Self::South => [(1, -1), (1, 0), (1, 1)],
+            Self::West => [(-1, -1), (0, -1), (1, -1)],
+            Self::East => [(-1, 1), (0, 1), (1, 1)],
+        }
+    }
 }
 
 fn one_round(board: &Board, directions: &Vec<Direction>) -> Board {
+    // println!("{directions:?}");
     let mut proposals: HashMap<Position, Vec<Elf>> = HashMap::new();
     for elf in &board.elves {
+        // println!("Elf: {elf:?}");
         let proposed_move = elf.propose_move(board, directions);
+        // println!("Proposed move: {proposed_move:?}");
         let entry = proposals.entry(proposed_move);
         entry.or_default().push(*elf);
     }
+    // println!("Proposals: {proposals:?}");
     Board {
         elves: proposals
             .into_iter()
@@ -167,11 +234,7 @@ fn disperse_elves(mut board: Board, num_rounds: usize) -> Board {
     board
 }
 
-fn empty_ground_tiles(board: &Board) -> usize {
-    todo!()
-}
-
-static INPUT_FILE: &str = "../inputs/day_23_small_test.input";
+static INPUT_FILE: &str = "../inputs/day_23.input";
 
 fn main() -> anyhow::Result<()> {
     const NUM_ROUNDS: usize = 10;
@@ -180,17 +243,19 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("Failed to open file '{INPUT_FILE}'"))?;
 
     let board = parse_map(&file);
-    println!("{board:?}");
+    println!("Initial board: \n{board}");
 
-    let board = one_round(&board, &Direction::cycle().collect());
-    println!("{board:?}");
+    // let board = one_round(&board, &Direction::cycle().take(4).collect());
+    // println!("After one round: \n{board}");
 
-    let board = one_round(&board, &Direction::cycle().skip(1).collect());
-    println!("{board:?}");
+    // let board = one_round(&board, &Direction::cycle().skip(1).take(4).collect());
+    // println!("After two_rounds: \n{board}");
 
     let final_elves = disperse_elves(board, NUM_ROUNDS);
 
-    let result = empty_ground_tiles(&final_elves);
+    println!("After dispersal: \n{final_elves}");
+
+    let result = final_elves.empty_ground_tiles();
 
     println!("The result = {result}.");
 
