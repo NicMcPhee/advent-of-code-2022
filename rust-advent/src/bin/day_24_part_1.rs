@@ -6,7 +6,7 @@
 use anyhow::Context;
 use pathfinding::directed::dijkstra::dijkstra;
 use std::fmt::Display;
-use std::ops::{Add, Deref};
+use std::ops::Add;
 use std::{collections::HashMap, fs};
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -69,14 +69,14 @@ impl Display for Direction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Blizzard {
     direction: Direction,
 }
 
 #[derive(Debug)]
 struct Map {
-    blizzards: HashMap<Pos, Vec<Blizzard>>,
+    blizzards: HashMap<Pos, Blizzard>,
     num_rows: usize,
     num_cols: usize,
     start: Pos,
@@ -92,10 +92,8 @@ impl Map {
         self.blizzards.contains_key(position)
     }
 
-    fn blizzards_at(&self, position: &Pos) -> &[Blizzard] {
-        self.blizzards
-            .get(position)
-            .map_or_else(|| &[], Deref::deref)
+    fn blizzard_at(&self, position: &Pos) -> Option<Blizzard> {
+        self.blizzards.get(position).copied()
     }
 
     // The plan is to use MizardX@Twitch's idea of wrapping, so we leave
@@ -131,10 +129,12 @@ impl Display for Map {
                     write!(f, "#")?;
                     continue;
                 }
-                match self.blizzards_at(&pos) {
-                    [] => write!(f, ".")?,
-                    [b] => write!(f, "{}", b.direction)?,
-                    blizzards => write!(f, "{}", &blizzards.len())?,
+                match self.blizzard_at(&pos) {
+                    None => write!(f, ".")?,
+                    Some(blizzard) => write!(f, "{}", blizzard.direction)?,
+                    // [] => write!(f, ".")?,
+                    // [b] => write!(f, "{}", b.direction)?,
+                    // blizzards => write!(f, "{}", &blizzards.len())?,
                 }
             }
             writeln!(f)?;
@@ -143,7 +143,7 @@ impl Display for Map {
     }
 }
 
-fn process_line(blizzards: &mut HashMap<Pos, Vec<Blizzard>>, row: usize, line: &str) {
+fn process_line(blizzards: &mut HashMap<Pos, Blizzard>, row: usize, line: &str) {
     for (col, c) in line.chars().enumerate() {
         match c {
             '#' | '.' => {}
@@ -155,17 +155,14 @@ fn process_line(blizzards: &mut HashMap<Pos, Vec<Blizzard>>, row: usize, line: &
                     'v' => Direction::South,
                     _ => unreachable!("We received a character {c} that shouldn't have happened"),
                 };
-                blizzards
-                    .entry(Pos::new(row, col))
-                    .or_default()
-                    .push(Blizzard { direction });
+                blizzards.insert(Pos::new(row, col), Blizzard { direction });
             }
         }
     }
 }
 
 fn parse_map(file_contents: &str) -> Map {
-    let mut blizzards: HashMap<Pos, Vec<Blizzard>> = HashMap::new();
+    let mut blizzards: HashMap<Pos, Blizzard> = HashMap::new();
     let mut num_rows = usize::MIN;
     let mut num_cols = 0;
     for (row, line) in file_contents.lines().enumerate() {
