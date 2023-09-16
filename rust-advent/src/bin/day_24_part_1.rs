@@ -4,6 +4,7 @@
 #![warn(clippy::expect_used)]
 
 use anyhow::Context;
+use pathfinding::directed::dijkstra::dijkstra;
 use std::fmt::Display;
 use std::ops::{Add, Deref};
 use std::{collections::HashMap, fs};
