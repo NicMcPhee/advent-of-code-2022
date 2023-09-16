@@ -38,6 +38,18 @@ impl Add for Pos {
     }
 }
 
+#[derive(Eq, PartialEq, Hash, Clone)]
+struct Node {
+    pos: Pos,
+    time: usize,
+}
+
+impl Node {
+    const fn new(pos: Pos, time: usize) -> Self {
+        Self { pos, time }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Direction {
     North,
@@ -84,6 +96,22 @@ impl Map {
         self.blizzards
             .get(position)
             .map_or_else(|| &[], Deref::deref)
+    }
+
+    // The plan is to use MizardX@Twitch's idea of wrapping, so we leave
+    // the map unchanged, and just move the blizzards `t` time steps
+    // in their direction and see if they get in the way.
+    //
+    // We know where we are, so we know which positions problematic
+    // blizzards could be in, and we can reverse time to find out where
+    // those blizzards would have needed to be in the initial map, and
+    // then just look them up.
+    fn successors(&self, node: &Node) -> Vec<(Node, usize)> {
+        todo!()
+    }
+
+    fn finished(&self, node: &Node) -> bool {
+        node.pos == self.finish
     }
 }
 
@@ -164,6 +192,16 @@ fn main() -> anyhow::Result<()> {
     println!("Initial map: \n{map}");
     println!("{}, {}", map.num_rows, map.num_cols);
     println!("{:?}, {:?}", map.start, map.finish);
+
+    let Some((_, num_minutes)) = dijkstra(
+        &Node::new(map.start, 0),
+        |node| map.successors(node),
+        |node| map.finished(node),
+    ) else {
+        unreachable!("Dijkstra should have returned a successful path.")
+    };
+
+    println!("The number of minutes was {num_minutes}.");
 
     Ok(())
 }
