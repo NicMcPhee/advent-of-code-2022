@@ -8,6 +8,8 @@ use pathfinding::directed::astar::astar;
 use std::fmt::Display;
 use std::ops::Add;
 use std::{collections::HashMap, fs};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 struct Pos {
@@ -50,7 +52,7 @@ impl Node {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, EnumIter)]
 enum Direction {
     North,
     South,
