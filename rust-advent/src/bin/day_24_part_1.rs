@@ -40,6 +40,34 @@ impl Add for Pos {
     }
 }
 
+impl Add<Direction> for Pos {
+    type Output = Self;
+
+    // The position will always be "inside" the walls, which means that
+    // that both `row` and `col` are guaranteed to be > 0. This makes
+    // subtracting one "safe" here.
+    fn add(self, direction: Direction) -> Self::Output {
+        match direction {
+            Direction::North => Self {
+                row: self.row - 1,
+                col: self.col,
+            },
+            Direction::South => Self {
+                row: self.row + 1,
+                col: self.col,
+            },
+            Direction::West => Self {
+                row: self.row,
+                col: self.col - 1,
+            },
+            Direction::East => Self {
+                row: self.row,
+                col: self.col + 1,
+            },
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Hash, Clone)]
 struct Node {
     pos: Pos,
