@@ -4,7 +4,7 @@
 #![warn(clippy::expect_used)]
 
 use anyhow::Context;
-use pathfinding::directed::dijkstra::dijkstra;
+use pathfinding::directed::astar::astar;
 use std::fmt::Display;
 use std::ops::Add;
 use std::{collections::HashMap, fs};
@@ -190,9 +190,10 @@ fn main() -> anyhow::Result<()> {
     println!("{}, {}", map.num_rows, map.num_cols);
     println!("{:?}, {:?}", map.start, map.finish);
 
-    let Some((_, num_minutes)) = dijkstra(
+    let Some((_, num_minutes)) = astar(
         &Node::new(map.start, 0),
         |node| map.successors(node),
+        |node| map.heuristic(node),
         |node| map.finished(node),
     ) else {
         unreachable!("Dijkstra should have returned a successful path.")
