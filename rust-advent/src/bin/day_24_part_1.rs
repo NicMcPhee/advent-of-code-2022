@@ -21,6 +21,10 @@ impl Pos {
     const fn new(row: usize, col: usize) -> Self {
         Self { row, col }
     }
+
+    const fn manhattan_dist_to(&self, other: &Self) -> usize {
+        self.row.abs_diff(other.row) + self.col.abs_diff(other.col)
+    }
 }
 
 impl Add for Pos {
@@ -162,8 +166,8 @@ impl Map {
             .collect()
     }
 
-    fn dist_to_goal(&self, node: &Node) -> usize {
-        todo!()
+    const fn dist_to_goal(&self, node: &Node) -> usize {
+        node.pos.manhattan_dist_to(&self.finish)
     }
 
     fn finished(&self, node: &Node) -> bool {
