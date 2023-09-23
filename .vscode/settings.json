@@ -1,10 +1,12 @@
 {
     "cSpell.words": [
+        "astar",
         "itertools",
         "minmax",
         "Mizard",
         "ncols",
         "ndarray",
+        "pathfinding",
         "proptest"
     ],
     "rust-analyzer.linkedProjects": [
