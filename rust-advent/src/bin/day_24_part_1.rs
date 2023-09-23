@@ -6,6 +6,7 @@
 use anyhow::Context;
 use pathfinding::directed::astar::astar;
 use std::fmt::Display;
+use std::iter::once;
 use std::ops::Add;
 use std::{collections::HashMap, fs};
 use strum::IntoEnumIterator;
@@ -72,7 +73,7 @@ impl Add<Direction> for Pos {
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
 struct Node {
     pos: Pos,
     time: usize,
@@ -149,21 +150,21 @@ impl Map {
     // blizzards could be in, and we can reverse time to find out where
     // those blizzards would have needed to be in the initial map, and
     // then just look them up.
-    fn successors(&self, node: &Node) -> Vec<(Node, usize)> {
+    fn successors(&self, Node { pos, time }: Node) -> impl IntoIterator<Item = (Node, usize)> + '_ {
         Direction::iter()
-            .map(|dir| node.pos + dir)
+            .map(move |dir| pos + dir)
             .filter(|pos| self.not_wall(pos))
-            .filter(|pos| self.no_blizzard(pos, node.time))
-            .map(|pos| {
+            .chain(once(pos))
+            .filter(move |pos| self.no_blizzard(pos, time))
+            .map(move |pos| {
                 (
                     Node {
                         pos,
-                        time: node.time + 1,
+                        time: time + 1,
                     },
-                    node.time + 1,
+                    time + 1,
                 )
             })
-            .collect()
     }
 
     const fn dist_to_goal(&self, node: &Node) -> usize {
@@ -254,11 +255,11 @@ fn main() -> anyhow::Result<()> {
 
     let Some((_, num_minutes)) = astar(
         &Node::new(map.start, 0),
-        |node| map.successors(node),
+        |node| map.successors(*node),
         |node| map.dist_to_goal(node),
         |node| map.finished(node),
     ) else {
-        unreachable!("Dijkstra should have returned a successful path.")
+        unreachable!("A* should have returned a successful path.")
     };
 
     println!("The number of minutes was {num_minutes}.");
