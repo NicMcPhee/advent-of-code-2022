@@ -126,6 +126,17 @@ impl Map {
         self.blizzards.get(position).copied()
     }
 
+    const fn not_wall(&self, position: &Pos) -> bool {
+        position.row > 0
+            && position.row < self.num_rows - 1
+            && position.col > 0
+            && position.col < self.num_cols - 1
+    }
+
+    fn no_blizzard(&self, position: &Pos, time: usize) -> bool {
+        todo!()
+    }
+
     // The plan is to use MizardX@Twitch's idea of wrapping, so we leave
     // the map unchanged, and just move the blizzards `t` time steps
     // in their direction and see if they get in the way.
@@ -135,6 +146,23 @@ impl Map {
     // those blizzards would have needed to be in the initial map, and
     // then just look them up.
     fn successors(&self, node: &Node) -> Vec<(Node, usize)> {
+        Direction::iter()
+            .map(|dir| node.pos + dir)
+            .filter(|pos| self.not_wall(pos))
+            .filter(|pos| self.no_blizzard(pos, node.time))
+            .map(|pos| {
+                (
+                    Node {
+                        pos,
+                        time: node.time + 1,
+                    },
+                    node.time + 1,
+                )
+            })
+            .collect()
+    }
+
+    fn dist_to_goal(&self, node: &Node) -> usize {
         todo!()
     }
 
@@ -223,7 +251,7 @@ fn main() -> anyhow::Result<()> {
     let Some((_, num_minutes)) = astar(
         &Node::new(map.start, 0),
         |node| map.successors(node),
-        |node| map.heuristic(node),
+        |node| map.dist_to_goal(node),
         |node| map.finished(node),
     ) else {
         unreachable!("Dijkstra should have returned a successful path.")
