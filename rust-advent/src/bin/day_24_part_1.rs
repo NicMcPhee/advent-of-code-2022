@@ -2,15 +2,17 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
+#![allow(clippy::items_after_test_module)]
 
 use anyhow::Context;
 use pathfinding::directed::astar::astar;
 use std::fmt::Display;
 use std::iter::once;
-use std::ops::Add;
+use std::ops::{Add, Not};
 use std::{collections::HashMap, fs};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use vector2d::Vector2D;
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 struct Pos {
@@ -45,16 +47,22 @@ impl Add for Pos {
     }
 }
 
+impl From<Vector2D<usize>> for Pos {
+    fn from(v: Vector2D<usize>) -> Self {
+        Self { row: v.x, col: v.y }
+    }
+}
+
 impl Add<Direction> for Pos {
-    type Output = Self;
+    type Output = Option<Self>;
 
     // The position will always be "inside" the walls, which means that
     // that both `row` and `col` are guaranteed to be > 0. This makes
     // subtracting one "safe" here.
     fn add(self, direction: Direction) -> Self::Output {
-        match direction {
+        Some(match direction {
             Direction::North => Self {
-                row: self.row - 1,
+                row: self.row.checked_sub(1)?,
                 col: self.col,
             },
             Direction::South => Self {
@@ -63,17 +71,17 @@ impl Add<Direction> for Pos {
             },
             Direction::West => Self {
                 row: self.row,
-                col: self.col - 1,
+                col: self.col.checked_sub(1)?,
             },
             Direction::East => Self {
                 row: self.row,
                 col: self.col + 1,
             },
-        }
+        })
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 struct Node {
     pos: Pos,
     time: usize,
@@ -91,6 +99,57 @@ enum Direction {
     South,
     West,
     East,
+}
+
+impl Direction {
+    const fn rotate_180(self) -> Self {
+        match self {
+            Self::North => Self::South,
+            Self::South => Self::North,
+            Self::West => Self::East,
+            Self::East => Self::West,
+        }
+    }
+}
+
+impl From<Direction> for Vector2D<isize> {
+    fn from(dir: Direction) -> Self {
+        match dir {
+            Direction::North => Self::new(-1, 0),
+            Direction::South => Self::new(1, 0),
+            Direction::West => Self::new(0, -1),
+            Direction::East => Self::new(0, 1),
+        }
+    }
+}
+
+impl From<&Pos> for Vector2D<usize> {
+    fn from(pos: &Pos) -> Self {
+        Self::new(pos.row, pos.col)
+    }
+}
+
+trait RemEuclid {
+    type Output;
+
+    fn rem_euclid(&self, bounds: Self) -> Self::Output;
+}
+
+impl RemEuclid for Vector2D<isize> {
+    type Output = Vector2D<usize>;
+
+    fn rem_euclid(
+        &self,
+        Self {
+            x: x_bounds,
+            y: y_bounds,
+        }: Self,
+    ) -> Self::Output {
+        Vector2D::new(
+            self.x.rem_euclid(x_bounds) as usize,
+            self.y.rem_euclid(y_bounds) as usize,
+        )
+    }
 }
 
 impl Display for Direction {
@@ -118,28 +177,48 @@ struct Map {
     finish: Pos,
 }
 
-// TODO: Revisit this without the map, but keeping just a vector of Blizzards, where a
-//   knows its position and direction. MizardX@Twitch suggested this, and I'd thought
-//   about it a little as well.
-
 impl Map {
-    fn occupied(&self, position: &Pos) -> bool {
-        self.blizzards.contains_key(position)
-    }
-
     fn blizzard_at(&self, position: &Pos) -> Option<Blizzard> {
         self.blizzards.get(position).copied()
     }
 
-    const fn not_wall(&self, position: &Pos) -> bool {
+    fn legal_position(&self, position: &Pos) -> bool {
+        // We need to be able to move "down" into the wall when the
+        // position is the target position.
+        if *position == self.finish {
+            return true;
+        }
         position.row > 0
-            && position.row < self.num_rows - 1
+            && (position.row < self.num_rows - 1)
             && position.col > 0
             && position.col < self.num_cols - 1
     }
 
+    #[allow(clippy::cast_possible_wrap)]
+    fn initial_pos(&self, position: &Pos, dir: Direction, time: usize) -> Pos {
+        let direction_vector: Vector2D<isize> = Vector2D::from(dir) * (time as isize);
+        Pos::from(
+            (Vector2D::from(position).as_isizes() + Vector2D::new(-1, -1) + direction_vector)
+                .rem_euclid(Vector2D::new(
+                    self.num_rows as isize - 2,
+                    self.num_cols as isize - 2,
+                ))
+                + Vector2D::new(1, 1),
+        )
+    }
+
     fn no_blizzard(&self, position: &Pos, time: usize) -> bool {
-        todo!()
+        if *position == self.finish || *position == self.start {
+            return true;
+        }
+        Direction::iter()
+            .any(|dir| {
+                let pos = self.initial_pos(position, dir, time);
+
+                self.blizzard_at(&pos)
+                    .is_some_and(|blizzard| blizzard.direction.rotate_180() == dir)
+            })
+            .not()
     }
 
     // The plan is to use MizardX@Twitch's idea of wrapping, so we leave
@@ -151,18 +230,19 @@ impl Map {
     // those blizzards would have needed to be in the initial map, and
     // then just look them up.
     fn successors(&self, Node { pos, time }: Node) -> impl IntoIterator<Item = (Node, usize)> + '_ {
+        println!("{pos:?}");
         Direction::iter()
-            .map(move |dir| pos + dir)
-            .filter(|pos| self.not_wall(pos))
+            .filter_map(move |dir| pos + dir)
+            .filter(|pos| self.legal_position(pos))
             .chain(once(pos))
-            .filter(move |pos| self.no_blizzard(pos, time))
+            .filter(move |pos| self.no_blizzard(pos, time + 1))
             .map(move |pos| {
                 (
                     Node {
                         pos,
                         time: time + 1,
                     },
-                    time + 1,
+                    1,
                 )
             })
     }
@@ -173,6 +253,68 @@ impl Map {
 
     fn finished(&self, node: &Node) -> bool {
         node.pos == self.finish
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn successors_test() {
+        let mut map = Map {
+            blizzards: HashMap::new(),
+            num_rows: 10,
+            num_cols: 10,
+            start: Pos { row: 0, col: 1 },
+            finish: Pos { row: 9, col: 8 },
+        };
+        map.blizzards.insert(
+            Pos { row: 5, col: 5 },
+            Blizzard {
+                direction: Direction::North,
+            },
+        );
+
+        let node = Node {
+            pos: Pos { row: 3, col: 5 },
+            time: 0,
+        };
+
+        let successors = map.successors(node).into_iter().collect::<Vec<_>>();
+        dbg!(&successors);
+        assert_eq!(successors.len(), 4);
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn no_blizzard_test() {
+        let mut map = Map {
+            blizzards: HashMap::new(),
+            num_rows: 10,
+            num_cols: 10,
+            start: Pos { row: 0, col: 1 },
+            finish: Pos { row: 9, col: 8 },
+        };
+        map.blizzards.insert(
+            Pos { row: 5, col: 5 },
+            Blizzard {
+                direction: Direction::North,
+            },
+        );
+
+        let pos = Pos { row: 4, col: 5 };
+        let above = (pos + Direction::North).unwrap();
+        let below = (pos + Direction::South).unwrap();
+
+        assert_eq!(
+            [
+                map.no_blizzard(&pos, 1),
+                map.no_blizzard(&above, 1),
+                map.no_blizzard(&below, 1)
+            ],
+            [false, true, true]
+        );
     }
 }
 
@@ -242,7 +384,7 @@ fn parse_map(file_contents: &str) -> Map {
     }
 }
 
-static INPUT_FILE: &str = "../inputs/day_24_test.input";
+static INPUT_FILE: &str = "../inputs/day_24.input";
 
 fn main() -> anyhow::Result<()> {
     let file = fs::read_to_string(INPUT_FILE)
@@ -253,7 +395,7 @@ fn main() -> anyhow::Result<()> {
     println!("{}, {}", map.num_rows, map.num_cols);
     println!("{:?}, {:?}", map.start, map.finish);
 
-    let Some((_, num_minutes)) = astar(
+    let Some((path, num_minutes)) = astar(
         &Node::new(map.start, 0),
         |node| map.successors(*node),
         |node| map.dist_to_goal(node),
@@ -261,6 +403,8 @@ fn main() -> anyhow::Result<()> {
     ) else {
         unreachable!("A* should have returned a successful path.")
     };
+
+    println!("The path was {path:#?}");
 
     println!("The number of minutes was {num_minutes}.");
 
